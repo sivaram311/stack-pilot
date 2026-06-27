@@ -1,0 +1,35 @@
+server:
+  port: 8091
+  address: 0.0.0.0
+
+spring:
+  application:
+    name: stack-pilot
+  main:
+    banner-mode: "off"
+
+stackpilot:
+  logs-dir: logs
+  max-log-lines: 500
+  external-scan-interval-ms: 5000
+  services:
+    python-downloader:
+      working-dir: "E:/Source/grok_dev/python"
+      command: "python run_data_downloader.py"
+      direct-launch: true
+      environment:
+        PYTHONIOENCODING: "utf-8"
+        PYTHONUTF8: "1"
+      log-file: python.log
+      process-name: "python.exe"
+      process-match: "run_data_downloader.py"
+    backend:
+      working-dir: "E:/Source/grok_dev/backend"
+      command: "mvn spring-boot:run"
+      log-file: backend.log
+      port: 8081
+    frontend:
+      working-dir: "E:/Source/grok_dev/frontend"
+      command: "npm run start"
+      log-file: frontend.log
+      port: 4200
