@@ -47,8 +47,22 @@ The manager will manage the following services from `grok-dev`:
 | Service Name | Working Directory | Command | Target Port |
 | :--- | :--- | :--- | :--- |
 | **python-downloader** | `E:\Source\grok_dev\python` | `python run_data_downloader.py` | N/A |
-| **backend** | `E:\Source\grok_dev\backend` | `mvn spring-boot:run` | `8080` (default) |
+| **python-order-rsi** | `E:\Source\grok_dev\python` | `python run_order_rsi.py` | N/A |
+| **backend** | `E:\Source\grok_dev\backend` | `mvn spring-boot:run` | `8081` |
 | **frontend** | `E:\Source\grok_dev\frontend` | `npm run start` (or `ng serve`) | `4200` |
+
+**python-order-rsi** publishes live forming-bar RSI(14) for W1→M1 from MT5 into `grok_dev.live_order_rsi`. Configure in `application.yml` under `stackpilot.services.python-order-rsi.environment`:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `ORDER_RSI_MODE` | `tick` | `tick` (push on price change) or `poll` (fixed interval) |
+| `ORDER_RSI_TICK_MS` | `250` | MT5 tick check interval when mode is `tick` |
+| `ORDER_RSI_POLL_MS` | `1000` | Minimum push interval / poll mode interval |
+| `BROKER_SERVER_ZONE` | `UTC` | Broker wall-time zone; match `grok.market.broker-server-zone` in the backend |
+
+Logs: `logs/order-rsi.log`. Requires MT5 terminal logged in (same as the downloader).
+
+StackPilot dashboard: http://localhost:8091/
 
 ---
 
@@ -73,7 +87,7 @@ When a process like `mvn spring-boot:run` or `npm run start` is started, the par
 * This task reads from the process's input stream line-by-line.
 * The logs will be:
   1. Printed to the manager's console log.
-  2. Written to dynamic service-specific log files inside a `logs/` directory (e.g., `logs/python.log`, `logs/backend.log`, `logs/frontend.log`).
+  2. Written to dynamic service-specific log files inside a `logs/` directory (e.g., `logs/python.log`, `logs/order-rsi.log`, `logs/backend.log`, `logs/frontend.log`).
   3. Kept in a rolling in-memory buffer (e.g., circular FIFO queue of the last 500 lines) so they can be fetched via API.
 
 ---

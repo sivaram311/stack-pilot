@@ -68,6 +68,37 @@
                     </div>
                 </div>
 
+                <!-- Python Order RSI Card -->
+                <div class="card" id="card-python-order-rsi">
+                    <div class="card-header">
+                        <h3>Python Order RSI</h3>
+                        <span class="status-badge status-stopped" id="status-python-order-rsi">Stopped</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="label">Dir:</span>
+                            <span class="value path" title="E:\Source\grok_dev\python">python/</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Port:</span>
+                            <span class="value" id="port-python-order-rsi">N/A</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">PID:</span>
+                            <span class="value pid" id="pid-python-order-rsi">-</span>
+                        </div>
+                        <div class="info-row error-row" id="err-row-python-order-rsi" style="display: none;">
+                            <span class="label">Error:</span>
+                            <span class="value error-msg" id="err-python-order-rsi"></span>
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-card btn-success start-btn" data-service="python-order-rsi">Start</button>
+                        <button class="btn btn-card btn-warning restart-btn" data-service="python-order-rsi">Restart</button>
+                        <button class="btn btn-card btn-danger stop-btn" data-service="python-order-rsi">Stop</button>
+                    </div>
+                </div>
+
                 <!-- Backend Card -->
                 <div class="card" id="card-backend">
                     <div class="card-header">
@@ -135,7 +166,8 @@
             <section class="logs-section">
                 <div class="logs-header">
                     <div class="logs-tabs" role="tablist" aria-label="Log sources">
-                        <button class="tab-btn active" type="button" role="tab" data-tab="python-downloader">Python</button>
+                        <button class="tab-btn active" type="button" role="tab" data-tab="python-downloader">Downloader</button>
+                        <button class="tab-btn" type="button" role="tab" data-tab="python-order-rsi">Order RSI</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="backend">Backend</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="frontend">Frontend</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="stackpilot-actions">Actions</button>

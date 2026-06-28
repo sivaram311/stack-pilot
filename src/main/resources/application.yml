@@ -23,6 +23,20 @@ stackpilot:
       log-file: python.log
       process-name: "python.exe"
       process-match: "run_data_downloader.py"
+    python-order-rsi:
+      working-dir: "E:/Source/grok_dev/python"
+      command: "python run_order_rsi.py"
+      direct-launch: true
+      environment:
+        PYTHONIOENCODING: "utf-8"
+        PYTHONUTF8: "1"
+        ORDER_RSI_MODE: "tick"
+        ORDER_RSI_TICK_MS: "250"
+        ORDER_RSI_POLL_MS: "1000"
+        BROKER_SERVER_ZONE: "UTC"
+      log-file: order-rsi.log
+      process-name: "python.exe"
+      process-match: "run_order_rsi.py"
     backend:
       working-dir: "E:/Source/grok_dev/backend"
       command: "mvn spring-boot:run"
