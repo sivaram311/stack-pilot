@@ -29,9 +29,16 @@ E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1
 E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
 ```
 
-### Control panel basic auth (`control.delena.buzz`)
+### Control panel access (`control.delena.buzz`)
 
-`control.delena.buzz.conf` requires `conf/.htpasswd-control` in the NGINX install directory.
+**Current (public):** NGINX basic auth and Stack Pilot API key are **disabled** while `stackpilot.auth.enabled: false` in `application.yml`. `control.delena.buzz` and `:8091` work without credentials.
+
+To re-enable protection:
+
+1. Set `stackpilot.auth.enabled: true` in `application.yml` and restart Stack Pilot.
+2. Uncomment `auth_basic` lines in `deployment/conf/control.delena.buzz.conf`, run `setup-control-auth.ps1`, then `sync-nginx-config.ps1 -Reload`.
+
+Previously, `control.delena.buzz.conf` used `conf/.htpasswd-control`:
 
 ```powershell
 # Creates C:\nginx-1.30.3\conf\.htpasswd-control (prompts for password)
@@ -40,11 +47,9 @@ E:\Source\stack-pilot\deployment\scripts\setup-control-auth.ps1 -Username admin
 E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
 ```
 
-Requires `openssl` on PATH (Git for Windows or OpenSSL). Browsers will prompt for username/password before the Stack Pilot UI loads.
+Direct access to `:8091` from non-localhost used Stack Pilot **API key** (`stackpilot.auth.api-key` or `STACKPILOT_AUTH_API_KEY`) when auth was enabled.
 
-Direct access to `:8091` from non-localhost uses Stack Pilot **API key** (`stackpilot.auth.api-key` or `STACKPILOT_AUTH_API_KEY`).
-
-Defaults:
+Defaults when auth is enabled:
 
 | Variable | Default |
 |----------|---------|

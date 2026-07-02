@@ -13,7 +13,8 @@ stackpilot:
   max-log-lines: 500
   external-scan-interval-ms: 5000
   auth:
-    enabled: true
+    # Set false for public access (no API key). Auth code remains; filter bypasses when disabled.
+    enabled: false
     # Override with env STACKPILOT_AUTH_API_KEY. Required for direct :8091 access from non-localhost.
     api-key: ${STACKPILOT_AUTH_API_KEY:JSiRBF6Ct40UAYLvO8cdpwxl9ET1WrVQ}
     allow-localhost-without-key: true
