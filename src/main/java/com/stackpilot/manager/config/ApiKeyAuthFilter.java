@@ -25,6 +25,16 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             "/api/auth/status"
     );
 
+    private static boolean isPublicStaticPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+        return "/".equals(path)
+                || "/index.html".equals(path)
+                || path.startsWith("/css/")
+                || path.startsWith("/js/");
+    }
+
     private final StackPilotProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -43,7 +53,10 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return true;
         }
         String path = request.getRequestURI();
-        if (PUBLIC_PATHS.contains(path)) {
+        if (PUBLIC_PATHS.contains(path) || isPublicStaticPath(path)) {
+            return true;
+        }
+        if (auth.isTrustProxyHeaders() && hasProxyHeaders(request)) {
             return true;
         }
         if (auth.isAllowLocalhostWithoutKey() && isLocalRequest(request)) {
@@ -73,6 +86,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         body.put("message", "Unauthorized — valid API key required");
         body.put("authRequired", true);
         objectMapper.writeValue(response.getOutputStream(), body);
+    }
+
+    private boolean hasProxyHeaders(HttpServletRequest request) {
+        String realIp = request.getHeader("X-Real-IP");
+        String forwarded = request.getHeader("X-Forwarded-For");
+        return (realIp != null && !realIp.isBlank()) || (forwarded != null && !forwarded.isBlank());
     }
 
     private String extractApiKey(HttpServletRequest request) {

@@ -30,6 +30,8 @@ public class StackPilotProperties {
         private String apiKey = "";
         /** Allow 127.0.0.1 / ::1 without API key (nginx proxy on same host). */
         private boolean allowLocalhostWithoutKey = true;
+        /** Skip API key when X-Real-IP / X-Forwarded-For present (behind nginx basic auth). */
+        private boolean trustProxyHeaders = true;
     }
 
     @Data

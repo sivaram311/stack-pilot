@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (key) showAuthGate('Stored API key was rejected.');
-            else showAuthGate('');
+            else showAuthGate('Use control.delena.buzz (nginx login) or enter API key for direct :8091 access.');
         } catch (e) {
             console.error('Auth check failed', e);
         }

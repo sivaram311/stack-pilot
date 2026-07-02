@@ -17,6 +17,7 @@ stackpilot:
     # Override with env STACKPILOT_AUTH_API_KEY. Required for direct :8091 access from non-localhost.
     api-key: ${STACKPILOT_AUTH_API_KEY:JSiRBF6Ct40UAYLvO8cdpwxl9ET1WrVQ}
     allow-localhost-without-key: true
+    trust-proxy-headers: true
   nginx:
     home: "C:/nginx-1.30.3"
     port: 80
