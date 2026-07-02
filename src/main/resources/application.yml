@@ -31,6 +31,10 @@ stackpilot:
     shutdown-delay-seconds: 60
     confirm-phrase-restart: "RESTART SERVER"
     confirm-phrase-shutdown: "SHUTDOWN SERVER"
+  boot:
+    auto-start-services: true
+    auto-start-nginx: true
+    startup-delay-ms: 45000
   services:
     python-downloader:
       working-dir: "E:/Source/grok_dev/python"

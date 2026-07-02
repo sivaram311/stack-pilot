@@ -185,3 +185,67 @@ Confirmation phrases are configured in `application.yml` under `stackpilot.host`
 **Safety:** The dashboard requires typing the exact phrase plus a final browser confirm dialog. Host actions need **Administrator** privileges on Windows.
 
 **Public exposure:** `control.delena.buzz` proxies to Stack Pilot — restrict access (firewall, VPN, or auth) if host controls should not be reachable from the internet.
+
+---
+
+## 8. Boot recovery — auto-start after machine restart
+
+Nothing starts automatically until boot tasks are registered. DNS still resolves, but ports **80**, **8091**, **4200**, and **8081** stay down until NGINX and Stack Pilot run.
+
+### Bootstrap chain
+
+```text
+Windows boot
+    │
+    ├─ [Task: StackPilot-NGINX-Boot]     +30s  →  NGINX :80
+    │
+    ├─ [Task: StackPilot-Manager-Boot]   +60s  →  Stack Pilot :8091
+    │
+    └─ [Stack Pilot BootStartupRunner]   +45s  →  nginx (fallback) + Start All grok_dev services
+```
+
+### One-time setup (Administrator PowerShell)
+
+```powershell
+# Build JAR and register both scheduled tasks
+E:\Source\stack-pilot\scripts\setup-boot-tasks.ps1
+```
+
+Equivalent wrapper: `E:\Source\Deployment\scripts\setup-boot-tasks.ps1`
+
+| Task name | Delay after boot | Action |
+| :--- | :--- | :--- |
+| `StackPilot-NGINX-Boot` | 30 seconds | `Deployment/scripts/start-nginx.ps1` |
+| `StackPilot-Manager-Boot` | 60 seconds | `stack-pilot/scripts/start-stack-pilot.ps1` |
+
+Tasks run as **SYSTEM** with highest privileges (required for port 80 and `shutdown`).
+
+### Stack Pilot boot settings (`application.yml`)
+
+| Key | Default | Description |
+| :--- | :--- | :--- |
+| `boot.auto-start-services` | `true` | Call Start All after JVM starts |
+| `boot.auto-start-nginx` | `true` | Ensure nginx is running (no-op if boot task already started it) |
+| `boot.startup-delay-ms` | `45000` | Wait before boot actions (Postgres, network, MT5) |
+
+### Manual start script (without Task Scheduler)
+
+```powershell
+E:\Source\stack-pilot\scripts\start-stack-pilot.ps1
+```
+
+Builds the JAR with Maven if missing, then runs `java -jar target/stack-pilot-*.jar` hidden.
+
+### Verify after reboot
+
+```powershell
+Get-ScheduledTask -TaskName 'StackPilot-*' | Format-Table TaskName, State
+E:\Source\Deployment\scripts\status-nginx.ps1
+curl http://localhost:8091/api/services
+```
+
+### Prerequisites still manual
+
+- **PostgreSQL** must be configured to start at boot (Windows service).
+- **MT5 terminal** must be logged in for Python downloader / order-rsi.
+- First-time setup: run `mvn package` or `setup-boot-tasks.ps1` (builds JAR automatically).

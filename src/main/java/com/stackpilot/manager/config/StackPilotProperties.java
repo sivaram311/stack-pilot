@@ -18,7 +18,18 @@ public class StackPilotProperties {
     private long externalScanIntervalMs = 5000;
     private NginxSettings nginx = new NginxSettings();
     private HostSettings host = new HostSettings();
+    private BootSettings boot = new BootSettings();
     private Map<String, ServiceDefinition> services = new LinkedHashMap<>();
+
+    @Data
+    public static class BootSettings {
+        /** After Stack Pilot starts, optionally start all grok_dev services. */
+        private boolean autoStartServices = true;
+        /** Fallback: start nginx from Stack Pilot if the boot task did not (already-running is a no-op). */
+        private boolean autoStartNginx = true;
+        /** Wait after JVM start before boot actions (network, Postgres, MT5). */
+        private long startupDelayMs = 45000;
+    }
 
     @Data
     public static class NginxSettings {
