@@ -169,6 +169,17 @@
         </footer>
     </div>
 
+    <div id="auth-gate" class="auth-gate hidden">
+        <div class="auth-gate-panel">
+            <h2>Stack Pilot</h2>
+            <p>API key required for direct access. Use the key from <code>application.yml</code> or <code>STACKPILOT_AUTH_API_KEY</code>.</p>
+            <label class="modal-label" for="auth-api-key">API key</label>
+            <input id="auth-api-key" class="modal-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste API key">
+            <p id="auth-gate-error" class="modal-error hidden"></p>
+            <button id="auth-gate-submit" class="btn btn-primary btn-glow" type="button">Unlock dashboard</button>
+        </div>
+    </div>
+
     <div id="host-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="host-modal-title">
         <div class="modal-backdrop" id="host-modal-backdrop"></div>
         <div class="modal-panel">

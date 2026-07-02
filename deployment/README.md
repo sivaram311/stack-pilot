@@ -29,6 +29,21 @@ E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1
 E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
 ```
 
+### Control panel basic auth (`control.delena.buzz`)
+
+`control.delena.buzz.conf` requires `conf/.htpasswd-control` in the NGINX install directory.
+
+```powershell
+# Creates C:\nginx-1.30.3\conf\.htpasswd-control (prompts for password)
+E:\Source\stack-pilot\deployment\scripts\setup-control-auth.ps1 -Username admin
+
+E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
+```
+
+Requires `openssl` on PATH (Git for Windows or OpenSSL). Browsers will prompt for username/password before the Stack Pilot UI loads.
+
+Direct access to `:8091` from non-localhost uses Stack Pilot **API key** (`stackpilot.auth.api-key` or `STACKPILOT_AUTH_API_KEY`).
+
 Defaults:
 
 | Variable | Default |

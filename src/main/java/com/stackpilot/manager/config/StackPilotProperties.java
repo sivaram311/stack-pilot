@@ -16,11 +16,21 @@ public class StackPilotProperties {
     private int maxLogLines = 500;
     /** Minimum milliseconds between external process scans per service (dashboard polling). */
     private long externalScanIntervalMs = 5000;
+    private AuthSettings auth = new AuthSettings();
     private NginxSettings nginx = new NginxSettings();
     private RdpSettings rdp = new RdpSettings();
     private HostSettings host = new HostSettings();
     private BootSettings boot = new BootSettings();
     private Map<String, ServiceDefinition> services = new LinkedHashMap<>();
+
+    @Data
+    public static class AuthSettings {
+        /** Require API key for non-localhost requests when api-key is set. */
+        private boolean enabled = true;
+        private String apiKey = "";
+        /** Allow 127.0.0.1 / ::1 without API key (nginx proxy on same host). */
+        private boolean allowLocalhostWithoutKey = true;
+    }
 
     @Data
     public static class BootSettings {
@@ -41,12 +51,24 @@ public class StackPilotProperties {
         private String confirmPhraseRecover = "RECOVER RDP";
         private String confirmPhraseApplyMitigations = "APPLY RDP FIX";
         private MonitorSettings monitor = new MonitorSettings();
+        private WebhookSettings webhook = new WebhookSettings();
 
         @Data
         public static class MonitorSettings {
             private boolean enabled = true;
             private long pollIntervalMs = 60000;
             private int alertAfterCrashesInHours = 2;
+        }
+
+        @Data
+        public static class WebhookSettings {
+            private boolean enabled = false;
+            /** Discord/Slack/generic POST URL. */
+            private String url = "";
+            /** discord | generic */
+            private String format = "discord";
+            private int cooldownMinutes = 30;
+            private String dashboardUrl = "http://control.delena.buzz/";
         }
     }
 

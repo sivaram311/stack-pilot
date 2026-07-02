@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const API_KEY_STORAGE = 'stackPilotApiKey';
+    let authRequired = false;
+    let authUnlocked = false;
+
     let activeTab = null;
     let lastLogHash = '';
     let pollingInterval = null;
@@ -53,18 +57,115 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostModalConfirm = document.getElementById('host-modal-confirm');
     const hostModalCancel = document.getElementById('host-modal-cancel');
     const hostModalBackdrop = document.getElementById('host-modal-backdrop');
+    const authGate = document.getElementById('auth-gate');
+    const authApiKeyInput = document.getElementById('auth-api-key');
+    const authGateSubmit = document.getElementById('auth-gate-submit');
+    const authGateError = document.getElementById('auth-gate-error');
 
     init();
 
+    function getStoredApiKey() {
+        return sessionStorage.getItem(API_KEY_STORAGE) || '';
+    }
+
+    function setStoredApiKey(key) {
+        if (key) sessionStorage.setItem(API_KEY_STORAGE, key);
+        else sessionStorage.removeItem(API_KEY_STORAGE);
+    }
+
+    function showAuthGate(message) {
+        authGate.classList.remove('hidden');
+        if (message) {
+            authGateError.textContent = message;
+            authGateError.classList.remove('hidden');
+        }
+    }
+
+    function hideAuthGate() {
+        authGate.classList.add('hidden');
+        authGateError.classList.add('hidden');
+        authUnlocked = true;
+    }
+
+    async function apiFetch(url, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const key = getStoredApiKey();
+        if (key) headers['X-StackPilot-Api-Key'] = key;
+
+        const response = await fetch(url, { ...options, headers });
+
+        if (response.status === 401) {
+            authRequired = true;
+            authUnlocked = false;
+            showAuthGate('Invalid or missing API key.');
+            throw new Error('Unauthorized');
+        }
+        return response;
+    }
+
+    async function checkAuth() {
+        try {
+            const response = await fetch('/api/auth/status');
+            if (!response.ok) return;
+            const status = await response.json();
+            authRequired = !!status.enabled;
+            if (!authRequired) {
+                hideAuthGate();
+                return;
+            }
+            const key = getStoredApiKey();
+            const headers = key ? { 'X-StackPilot-Api-Key': key } : {};
+            const probe = await fetch('/api/services', { headers });
+            if (probe.ok) {
+                hideAuthGate();
+                return;
+            }
+            if (key) showAuthGate('Stored API key was rejected.');
+            else showAuthGate('');
+        } catch (e) {
+            console.error('Auth check failed', e);
+        }
+    }
+
+    async function submitAuthGate() {
+        const key = authApiKeyInput.value.trim();
+        if (!key) return;
+        setStoredApiKey(key);
+        try {
+            const probe = await fetch('/api/services', {
+                headers: { 'X-StackPilot-Api-Key': key }
+            });
+            if (probe.ok) {
+                hideAuthGate();
+                startDashboardPolling();
+            } else {
+                setStoredApiKey('');
+                showAuthGate('API key rejected. Try again.');
+            }
+        } catch (e) {
+            showAuthGate('Could not verify API key.');
+        }
+    }
+
     function init() {
         setupEventListeners();
+        checkAuth().then(() => {
+            if (!authRequired || authUnlocked) {
+                startDashboardPolling();
+            }
+        });
+    }
+
+    function startDashboardPolling() {
         fetchStatus();
         fetchNginxStatus();
         fetchRdpStatus();
         fetchHostStatus();
         fetchLogs();
 
+        if (pollingInterval) clearInterval(pollingInterval);
         pollingInterval = setInterval(() => {
+            if (authRequired && !authUnlocked) return;
             fetchStatus();
             fetchNginxStatus();
             fetchRdpStatus();
@@ -118,6 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
         hostModalPhrase.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !hostModalConfirm.disabled) submitHostModal();
             if (e.key === 'Escape') closeHostModal();
+        });
+
+        authGateSubmit.addEventListener('click', submitAuthGate);
+        authApiKeyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitAuthGate();
         });
 
         clearLogsBtn.addEventListener('click', () => {
@@ -231,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchStatus() {
         try {
-            const response = await fetch('/api/services');
+            const response = await apiFetch('/api/services');
             if (!response.ok) throw new Error('API request failed');
             const servicesData = await response.json();
             services = servicesData.map(s => s.name);
@@ -386,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const endpoint = action === 'rdp-recover' ? 'recover' : 'apply-mitigations';
             addSystemLog(`RDP ${endpoint}...`);
             try {
-                const response = await fetch(`/api/infrastructure/rdp/${endpoint}`, {
+                const response = await apiFetch(`/api/infrastructure/rdp/${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ confirmPhrase: phrase })
@@ -403,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addSystemLog(`Scheduling host ${action}...`);
         try {
-            const response = await fetch(`/api/host/${action}`, {
+            const response = await apiFetch(`/api/host/${action}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ confirmPhrase: phrase })
@@ -419,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchRdpStatus() {
         try {
-            const response = await fetch('/api/infrastructure/rdp/status');
+            const response = await apiFetch('/api/infrastructure/rdp/status');
             if (!response.ok) throw new Error('RDP status request failed');
             updateRdpCard(await response.json());
         } catch (error) {
@@ -506,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchNginxStatus() {
         try {
-            const response = await fetch('/api/infrastructure/nginx/status');
+            const response = await apiFetch('/api/infrastructure/nginx/status');
             if (!response.ok) throw new Error('nginx status request failed');
             updateNginxCard(await response.json());
         } catch (error) {
@@ -588,7 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function callNginxAction(action, label) {
         addSystemLog(`Triggered: ${label}...`);
         try {
-            const response = await fetch(`/api/infrastructure/nginx/${action}`, { method: 'POST' });
+            const response = await apiFetch(`/api/infrastructure/nginx/${action}`, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const result = await response.json();
             addSystemLog(result.message || `${label} finished.`, !result.success);
@@ -601,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchHostStatus() {
         try {
-            const response = await fetch('/api/host/status');
+            const response = await apiFetch('/api/host/status');
             if (!response.ok) throw new Error('host status request failed');
             const status = await response.json();
             if (status.confirmPhraseRestart) hostConfig.confirmPhraseRestart = status.confirmPhraseRestart;
@@ -632,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function callHostCancel() {
         addSystemLog('Cancelling pending host action...');
         try {
-            const response = await fetch('/api/host/cancel', { method: 'POST' });
+            const response = await apiFetch('/api/host/cancel', { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const result = await response.json();
             addSystemLog(result.message || 'Host action cancelled.', !result.success);
@@ -645,7 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function callBulkAction(action, label) {
         addSystemLog(`Triggered: ${label}...`);
         try {
-            const response = await fetch(`/api/services/bulk/${action}`, { method: 'POST' });
+            const response = await apiFetch(`/api/services/bulk/${action}`, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const result = await response.json();
             if (result.results) {
@@ -666,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function callServiceAction(name, action) {
         addSystemLog(`Executing ${action} for service: ${name}...`);
         try {
-            const response = await fetch(`/api/services/${name}/${action}`, { method: 'POST' });
+            const response = await apiFetch(`/api/services/${name}/${action}`, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const result = await response.json();
             if (result.success) {
@@ -696,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 url = `/api/services/${activeTab}/logs?tail=200`;
             }
 
-            const response = await fetch(url);
+            const response = await apiFetch(url);
             if (!response.ok) throw new Error('API logs request failed');
             const logLines = await response.json();
             const logText = logLines.join('\n');
