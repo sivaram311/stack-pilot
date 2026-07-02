@@ -282,7 +282,8 @@ Stack Pilot becomes the **remote hands** when the desktop is unusable but `contr
 
 ## Next steps
 
-1. Apply Phase 1.1 (`fResetBroken=1`) on the VPS
+1. ~~Apply Phase 1.1 (`fResetBroken=1`) on the VPS~~ **Done**
 2. Schedule Phase 2.1 (Windows Update) in a maintenance window
-3. Implement Phase 3 scripts + API (can be done in stack-pilot repo)
-4. Update [implementation_plan.md](implementation_plan.md) with RDP infrastructure section after Phase 3 ships
+3. ~~Implement Phase 3 scripts + API~~ **Done**
+4. **Enable RDP webhook** — set `stackpilot.rdp.webhook.url` and `enabled: true` (Discord/Slack)
+5. **Rotate credentials** — `STACKPILOT_AUTH_API_KEY` and NGINX basic auth via `setup-control-auth.ps1`
