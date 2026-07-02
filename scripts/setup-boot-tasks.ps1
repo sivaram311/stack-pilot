@@ -9,8 +9,8 @@
 
 $ErrorActionPreference = "Stop"
 
-$DeploymentScripts = if ($env:DEPLOYMENT_SCRIPTS) { $env:DEPLOYMENT_SCRIPTS } else { "E:\Source\Deployment\scripts" }
 $StackPilotHome      = if ($env:STACK_PILOT_HOME) { $env:STACK_PILOT_HOME } else { "E:\Source\stack-pilot" }
+$DeploymentScripts   = if ($env:DEPLOYMENT_SCRIPTS) { $env:DEPLOYMENT_SCRIPTS } else { (Join-Path $StackPilotHome "deployment\scripts") }
 $StartNginxScript    = Join-Path $DeploymentScripts "start-nginx.ps1"
 $StartPilotScript    = Join-Path $StackPilotHome "scripts\start-stack-pilot.ps1"
 

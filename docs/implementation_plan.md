@@ -154,6 +154,35 @@ Status includes upstream port checks for frontend (`4200`), backend (`8081`), an
 
 **Note:** Application service bulk actions (Start All / Stop All) do **not** include nginx — manage it separately in Infrastructure.
 
+Site configs live in `stack-pilot/deployment/conf/`. Sync to the NGINX install:
+
+```powershell
+E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
+```
+
+---
+
+## 9. Deployment directory (`deployment/`)
+
+NGINX reverse-proxy assets are version-controlled under `stack-pilot/deployment/`:
+
+| Path | Purpose |
+| :--- | :--- |
+| `deployment/conf/*.conf` | Site configs (source of truth) |
+| `deployment/scripts/sync-nginx-config.ps1` | Copy to `C:\nginx-1.30.3\conf\`, fix `nginx.conf` includes, `nginx -t`, optional reload |
+| `deployment/scripts/start-nginx.ps1` | Start NGINX (used by boot task) |
+| `deployment/README.md` | Operations summary |
+
+Legacy `E:\Source\Deployment\` may still exist on disk; prefer `deployment/` for edits.
+
+---
+
+## 10. Dynamic dashboard
+
+The web UI builds **service cards** and **log tabs** from `/api/services` — adding a service in `application.yml` does not require HTML edits.
+
+**Host controls** use an in-page confirmation modal (typed phrase must match `stackpilot.host.confirm-phrase-*` before Confirm enables).
+
 ---
 
 ## 7. Host Controls — Server restart / shutdown
@@ -213,12 +242,13 @@ Windows boot
 E:\Source\stack-pilot\scripts\setup-boot-tasks.ps1
 ```
 
-Equivalent wrapper: `E:\Source\Deployment\scripts\setup-boot-tasks.ps1`
+Equivalent wrapper: `E:\Source\stack-pilot\deployment\scripts\` (preferred) or legacy `E:\Source\Deployment\scripts\setup-boot-tasks.ps1`
 
 | Task name | Delay after boot | Action |
 | :--- | :--- | :--- |
-| `StackPilot-NGINX-Boot` | 30 seconds | `Deployment/scripts/start-nginx.ps1` |
+| `StackPilot-NGINX-Boot` | 30 seconds | `deployment/scripts/start-nginx.ps1` |
 | `StackPilot-Manager-Boot` | 60 seconds | `stack-pilot/scripts/start-stack-pilot.ps1` |
+| NGINX config sync | manual after edits | `deployment/scripts/sync-nginx-config.ps1 -Reload` |
 
 Tasks run as **SYSTEM** with highest privileges (required for port 80 and `shutdown`).
 

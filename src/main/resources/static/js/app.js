@@ -1,13 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // State management
-    let activeTab = 'python-downloader';
+    let activeTab = null;
     let lastLogHash = '';
     let pollingInterval = null;
     let services = [];
-    let hostConfig = { confirmPhraseRestart: 'RESTART SERVER', confirmPhraseShutdown: 'SHUTDOWN SERVER', shutdownDelaySeconds: 60 };
+    let renderedServiceKey = '';
+    let pendingHostAction = null;
+    let hostConfig = {
+        confirmPhraseRestart: 'RESTART SERVER',
+        confirmPhraseShutdown: 'SHUTDOWN SERVER',
+        shutdownDelaySeconds: 60
+    };
 
-    // DOM Elements
-    const tabButtons = document.querySelectorAll('.tab-btn');
+    const LOG_TAB_LABELS = {
+        'python-downloader': 'Downloader',
+        'python-order-rsi': 'Order RSI',
+        'backend': 'Backend',
+        'frontend': 'Frontend',
+        'nginx-error': 'NGINX Error',
+        'nginx-access': 'NGINX Access',
+        'stackpilot-actions': 'Actions'
+    };
+
+    const servicesGrid = document.getElementById('services-grid');
+    const logsTabs = document.getElementById('logs-tabs');
     const terminalBody = document.getElementById('terminal-body');
     const autoScrollCheck = document.getElementById('chk-autoscroll');
     const clearLogsBtn = document.getElementById('btn-clear-logs');
@@ -22,7 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostShutdownBtn = document.getElementById('btn-host-shutdown');
     const hostCancelBtn = document.getElementById('btn-host-cancel');
 
-    // Initial load
+    const hostModal = document.getElementById('host-modal');
+    const hostModalTitle = document.getElementById('host-modal-title');
+    const hostModalDesc = document.getElementById('host-modal-desc');
+    const hostModalPhrase = document.getElementById('host-modal-phrase');
+    const hostModalExpected = document.getElementById('host-modal-expected');
+    const hostModalError = document.getElementById('host-modal-error');
+    const hostModalConfirm = document.getElementById('host-modal-confirm');
+    const hostModalCancel = document.getElementById('host-modal-cancel');
+    const hostModalBackdrop = document.getElementById('host-modal-backdrop');
+
     init();
 
     function init() {
@@ -31,8 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchNginxStatus();
         fetchHostStatus();
         fetchLogs();
-        
-        // Start polling status and active logs every 1.5 seconds
+
         pollingInterval = setInterval(() => {
             fetchStatus();
             fetchNginxStatus();
@@ -42,32 +65,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupEventListeners() {
-        // Tab switching
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                tabButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                activeTab = btn.getAttribute('data-tab');
-                
-                // Clear state so it updates immediately on next poll
-                lastLogHash = '';
-                terminalBody.innerHTML = `<div class="log-line system-msg">Switched tab to ${activeTab}. Loading logs...</div>`;
-                fetchLogs();
-            });
+        servicesGrid.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-service][data-action]');
+            if (!btn || btn.disabled) return;
+            callServiceAction(btn.dataset.service, btn.dataset.action);
         });
 
-        // Single service actions (Start, Stop, Restart)
-        document.querySelectorAll('.start-btn').forEach(btn => {
-            btn.addEventListener('click', () => callServiceAction(btn.dataset.service, 'start'));
-        });
-        document.querySelectorAll('.stop-btn').forEach(btn => {
-            btn.addEventListener('click', () => callServiceAction(btn.dataset.service, 'stop'));
-        });
-        document.querySelectorAll('.restart-btn').forEach(btn => {
-            btn.addEventListener('click', () => callServiceAction(btn.dataset.service, 'restart'));
+        logsTabs.addEventListener('click', (e) => {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            switchLogTab(btn.getAttribute('data-tab'));
         });
 
-        // Bulk actions
         startAllBtn.addEventListener('click', () => callBulkAction('start-all', 'Starting all services'));
         restartAllBtn.addEventListener('click', () => {
             if (confirm('Kill all external/managed grok-dev processes and relaunch under StackPilot?')) {
@@ -85,34 +94,143 @@ document.addEventListener('DOMContentLoaded', () => {
         nginxReloadBtn.addEventListener('click', () => callNginxAction('reload', 'Reloading nginx config'));
         nginxStatusBtn.addEventListener('click', () => fetchNginxStatus());
 
-        hostRestartBtn.addEventListener('click', () => callHostAction('restart'));
-        hostShutdownBtn.addEventListener('click', () => callHostAction('shutdown'));
+        hostRestartBtn.addEventListener('click', () => openHostModal('restart'));
+        hostShutdownBtn.addEventListener('click', () => openHostModal('shutdown'));
         hostCancelBtn.addEventListener('click', () => callHostCancel());
 
-        // Utility actions
+        hostModalCancel.addEventListener('click', closeHostModal);
+        hostModalBackdrop.addEventListener('click', closeHostModal);
+        hostModalConfirm.addEventListener('click', submitHostModal);
+        hostModalPhrase.addEventListener('input', updateHostModalConfirmState);
+        hostModalPhrase.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !hostModalConfirm.disabled) submitHostModal();
+            if (e.key === 'Escape') closeHostModal();
+        });
+
         clearLogsBtn.addEventListener('click', () => {
             terminalBody.innerHTML = '<div class="log-line system-msg">Log terminal view cleared.</div>';
             lastLogHash = '';
         });
     }
 
-    // Fetch states of all services and update cards
+    function formatDisplayName(name) {
+        const labels = {
+            'python-downloader': 'Python Downloader',
+            'python-order-rsi': 'Python Order RSI',
+            'backend': 'Backend Service',
+            'frontend': 'Frontend UI'
+        };
+        if (labels[name]) return labels[name];
+        return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function shortPath(workingDir) {
+        if (!workingDir) return '-';
+        const parts = workingDir.replace(/\\/g, '/').split('/').filter(Boolean);
+        return parts.length ? parts[parts.length - 1] + '/' : workingDir;
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function buildServiceCardHtml(service) {
+        const name = service.name;
+        const display = formatDisplayName(name);
+        const dir = shortPath(service.workingDir);
+        const port = service.port != null ? service.port : 'N/A';
+        return `
+            <div class="card" id="card-${escapeHtml(name)}" data-service="${escapeHtml(name)}">
+                <div class="card-header">
+                    <h3>${escapeHtml(display)}</h3>
+                    <span class="status-badge status-stopped" id="status-${escapeHtml(name)}">Stopped</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="label">Dir:</span>
+                        <span class="value path" title="${escapeHtml(service.workingDir || '')}">${escapeHtml(dir)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Cmd:</span>
+                        <span class="value path" title="${escapeHtml(service.command || '')}">${escapeHtml((service.command || '-').slice(0, 40))}${(service.command || '').length > 40 ? '...' : ''}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Port:</span>
+                        <span class="value" id="port-${escapeHtml(name)}">${escapeHtml(port)}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">PID:</span>
+                        <span class="value pid" id="pid-${escapeHtml(name)}">-</span>
+                    </div>
+                    <div class="info-row error-row" id="err-row-${escapeHtml(name)}" style="display: none;">
+                        <span class="label">Error:</span>
+                        <span class="value error-msg" id="err-${escapeHtml(name)}"></span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-card btn-success start-btn" data-service="${escapeHtml(name)}" data-action="start" type="button">Start</button>
+                    <button class="btn btn-card btn-warning restart-btn" data-service="${escapeHtml(name)}" data-action="restart" type="button">Restart</button>
+                    <button class="btn btn-card btn-danger stop-btn" data-service="${escapeHtml(name)}" data-action="stop" type="button">Stop</button>
+                </div>
+            </div>`;
+    }
+
+    function renderServiceCards(servicesData) {
+        const key = servicesData.map(s => s.name).join('|');
+        if (key !== renderedServiceKey) {
+            renderedServiceKey = key;
+            servicesGrid.innerHTML = servicesData.map(buildServiceCardHtml).join('');
+            renderLogTabs(servicesData.map(s => s.name));
+        }
+        servicesData.forEach(updateServiceCard);
+    }
+
+    function renderLogTabs(serviceNames) {
+        const staticTabs = ['nginx-error', 'nginx-access', 'stackpilot-actions'];
+        const allTabs = [...serviceNames, ...staticTabs];
+
+        if (!activeTab || !allTabs.includes(activeTab)) {
+            activeTab = serviceNames[0] || staticTabs[0];
+            lastLogHash = '';
+        }
+
+        logsTabs.innerHTML = allTabs.map(tab => {
+            const label = LOG_TAB_LABELS[tab] || formatDisplayName(tab);
+            const active = tab === activeTab ? ' active' : '';
+            return `<button class="tab-btn${active}" type="button" role="tab" data-tab="${escapeHtml(tab)}">${escapeHtml(label)}</button>`;
+        }).join('');
+    }
+
+    function switchLogTab(tab) {
+        if (!tab || tab === activeTab) return;
+        activeTab = tab;
+        logsTabs.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+        });
+        lastLogHash = '';
+        terminalBody.innerHTML = `<div class="log-line system-msg">Switched tab to ${tab}. Loading logs...</div>`;
+        fetchLogs();
+    }
+
     async function fetchStatus() {
         try {
             const response = await fetch('/api/services');
             if (!response.ok) throw new Error('API request failed');
-            
             const servicesData = await response.json();
-            services = servicesData.map(service => service.name);
-            servicesData.forEach(service => {
-                updateServiceCard(service);
-            });
+            services = servicesData.map(s => s.name);
+            renderServiceCards(servicesData);
         } catch (error) {
             console.error('Error fetching service status:', error);
+            if (!renderedServiceKey) {
+                servicesGrid.innerHTML = '<div class="card card-loading"><p class="error-msg">Failed to load services.</p></div>';
+            }
         }
     }
 
-    // Update single service card elements
     function updateServiceCard(service) {
         const idPrefix = service.name;
         const statusBadge = document.getElementById(`status-${idPrefix}`);
@@ -120,72 +238,115 @@ document.addEventListener('DOMContentLoaded', () => {
         const pidSpan = document.getElementById(`pid-${idPrefix}`);
         const errorRow = document.getElementById(`err-row-${idPrefix}`);
         const errorMsg = document.getElementById(`err-${idPrefix}`);
-        
+
         if (!statusBadge) return;
 
-        // Clean classes and set badge text
         statusBadge.className = 'status-badge';
         const displayStatus = service.status === 'RUNNING_EXTERNAL' ? 'External' : service.status;
         statusBadge.textContent = displayStatus;
-        
-        // Status specific styles
-        switch(service.status) {
-            case 'RUNNING':
-                statusBadge.classList.add('status-running');
-                break;
-            case 'RUNNING_EXTERNAL':
-                statusBadge.classList.add('status-external');
-                break;
-            case 'STARTING':
-                statusBadge.classList.add('status-starting');
-                break;
-            case 'STOPPED':
-                statusBadge.classList.add('status-stopped');
-                break;
-            case 'ERROR':
-                statusBadge.classList.add('status-error');
-                break;
+
+        switch (service.status) {
+            case 'RUNNING': statusBadge.classList.add('status-running'); break;
+            case 'RUNNING_EXTERNAL': statusBadge.classList.add('status-external'); break;
+            case 'STARTING': statusBadge.classList.add('status-starting'); break;
+            case 'STOPPED': statusBadge.classList.add('status-stopped'); break;
+            case 'ERROR': statusBadge.classList.add('status-error'); break;
         }
 
-        // Update port
-        if (portSpan) {
-            portSpan.textContent = service.port != null ? service.port : 'N/A';
-        }
+        if (portSpan) portSpan.textContent = service.port != null ? service.port : 'N/A';
+        if (pidSpan) pidSpan.textContent = service.pid && service.pid > 0 ? service.pid : '-';
 
-        // Update PID
-        pidSpan.textContent = service.pid && service.pid > 0 ? service.pid : '-';
-
-        // Update Error / info message
         if (service.errorMessage) {
             errorRow.style.display = 'flex';
             errorMsg.textContent = service.errorMessage;
-        } else {
+        } else if (errorRow) {
             errorRow.style.display = 'none';
         }
 
-        // Toggle button states based on status
         const card = document.getElementById(`card-${idPrefix}`);
-        if (card) {
-            const startBtn = card.querySelector('.start-btn');
-            const stopBtn = card.querySelector('.stop-btn');
-            const restartBtn = card.querySelector('.restart-btn');
+        if (!card) return;
 
-            if (service.status === 'RUNNING' || service.status === 'RUNNING_EXTERNAL') {
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-                restartBtn.disabled = false;
-                restartBtn.textContent = service.status === 'RUNNING_EXTERNAL' ? 'Take Control' : 'Restart';
-            } else if (service.status === 'STARTING') {
-                restartBtn.textContent = 'Restart';
-                startBtn.disabled = true;
-                stopBtn.disabled = true;
-                restartBtn.disabled = true;
-            } else { // STOPPED or ERROR
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                restartBtn.disabled = true;
-                restartBtn.textContent = 'Restart';
-            }
+        const startBtn = card.querySelector('[data-action="start"]');
+        const stopBtn = card.querySelector('[data-action="stop"]');
+        const restartBtn = card.querySelector('[data-action="restart"]');
+
+        if (service.status === 'RUNNING' || service.status === 'RUNNING_EXTERNAL') {
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            restartBtn.disabled = false;
+            restartBtn.textContent = service.status === 'RUNNING_EXTERNAL' ? 'Take Control' : 'Restart';
+        } else if (service.status === 'STARTING') {
+            restartBtn.textContent = 'Restart';
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+            restartBtn.disabled = true;
+        } else {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            restartBtn.disabled = true;
+            restartBtn.textContent = 'Restart';
+        }
+    }
+
+    function openHostModal(action) {
+        pendingHostAction = action;
+        const isRestart = action === 'restart';
+        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
+        const title = isRestart ? 'Restart Server' : 'Shutdown Server';
+
+        hostModalTitle.textContent = title;
+        hostModalDesc.textContent = `This will ${isRestart ? 'restart' : 'shut down'} the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds. You can cancel from the dashboard until the timer expires.`;
+        hostModalExpected.textContent = phraseRequired;
+        hostModalPhrase.value = '';
+        hostModalError.classList.add('hidden');
+        hostModalError.textContent = '';
+        hostModalConfirm.disabled = true;
+        hostModalConfirm.className = isRestart ? 'btn btn-warning' : 'btn btn-danger';
+        hostModalConfirm.textContent = `Confirm ${title}`;
+        hostModal.classList.remove('hidden');
+        hostModalPhrase.focus();
+    }
+
+    function closeHostModal() {
+        pendingHostAction = null;
+        hostModal.classList.add('hidden');
+        hostModalPhrase.value = '';
+        hostModalError.classList.add('hidden');
+    }
+
+    function updateHostModalConfirmState() {
+        if (!pendingHostAction) return;
+        const isRestart = pendingHostAction === 'restart';
+        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
+        const matches = hostModalPhrase.value.trim() === phraseRequired;
+        hostModalConfirm.disabled = !matches;
+        if (hostModalPhrase.value.length > 0 && !matches) {
+            hostModalError.textContent = 'Phrase does not match yet.';
+            hostModalError.classList.remove('hidden');
+        } else {
+            hostModalError.classList.add('hidden');
+        }
+    }
+
+    async function submitHostModal() {
+        if (!pendingHostAction || hostModalConfirm.disabled) return;
+        const action = pendingHostAction;
+        const phrase = hostModalPhrase.value.trim();
+        closeHostModal();
+
+        addSystemLog(`Scheduling host ${action}...`);
+        try {
+            const response = await fetch(`/api/host/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmPhrase: phrase })
+            });
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const result = await response.json();
+            addSystemLog(result.message || `Host ${action} scheduled.`, !result.success);
+            fetchHostStatus();
+        } catch (error) {
+            addSystemLog(`Host ${action} failed: ${error.message}`, true);
         }
     }
 
@@ -193,8 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/infrastructure/nginx/status');
             if (!response.ok) throw new Error('nginx status request failed');
-            const status = await response.json();
-            updateNginxCard(status);
+            updateNginxCard(await response.json());
         } catch (error) {
             console.error('Error fetching nginx status:', error);
         }
@@ -279,9 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             addSystemLog(result.message || `${label} finished.`, !result.success);
             fetchNginxStatus();
-            if (activeTab === 'nginx-error' || activeTab === 'nginx-access') {
-                fetchLogs();
-            }
+            if (activeTab === 'nginx-error' || activeTab === 'nginx-access') fetchLogs();
         } catch (error) {
             addSystemLog(`nginx ${action} failed: ${error.message}`, true);
         }
@@ -304,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pending = status.pending || {};
             if (pending.active) {
                 banner.style.display = 'flex';
-                text.textContent = `${pending.action} scheduled — ${pending.remainingSeconds}s remaining`;
+                text.textContent = `${pending.action} scheduled - ${pending.remainingSeconds}s remaining`;
                 hostRestartBtn.disabled = true;
                 hostShutdownBtn.disabled = true;
             } else {
@@ -314,40 +472,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error fetching host status:', error);
-        }
-    }
-
-    async function callHostAction(action) {
-        const isRestart = action === 'restart';
-        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
-        const warning = isRestart
-            ? `This will RESTART the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds.\n\nType the confirmation phrase exactly:`
-            : `This will SHUTDOWN the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds.\n\nType the confirmation phrase exactly:`;
-
-        const typed = prompt(warning, '');
-        if (typed === null) return;
-        if (typed.trim() !== phraseRequired) {
-            addSystemLog(`Host ${action} cancelled: confirmation phrase did not match.`, true);
-            return;
-        }
-
-        if (!confirm(`Final confirmation: schedule server ${action} in ${hostConfig.shutdownDelaySeconds} seconds?`)) {
-            return;
-        }
-
-        addSystemLog(`Scheduling host ${action}...`);
-        try {
-            const response = await fetch(`/api/host/${action}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirmPhrase: typed.trim() })
-            });
-            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-            const result = await response.json();
-            addSystemLog(result.message || `Host ${action} scheduled.`, !result.success);
-            fetchHostStatus();
-        } catch (error) {
-            addSystemLog(`Host ${action} failed: ${error.message}`, true);
         }
     }
 
@@ -385,34 +509,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Call service endpoints (start, stop, restart)
     async function callServiceAction(name, action) {
         addSystemLog(`Executing ${action} for service: ${name}...`);
         try {
-            const response = await fetch(`/api/services/${name}/${action}`, {
-                method: 'POST'
-            });
+            const response = await fetch(`/api/services/${name}/${action}`, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-            
             const result = await response.json();
             if (result.success) {
                 addSystemLog(`Successfully triggered ${action} for ${name}.`);
-                fetchStatus();
             } else {
                 const detail = result.errorMessage ? `: ${result.errorMessage}` : '';
                 addSystemLog(`Failed to execute ${action} for ${name}${detail}`, true);
-                fetchStatus();
             }
+            fetchStatus();
         } catch (error) {
-            console.error(`Error calling ${action} for service ${name}:`, error);
             addSystemLog(`Network Error during ${action} for ${name}: ${error.message}`, true);
         }
     }
 
-    // Fetch and display logs for the active tab
     async function fetchLogs() {
         if (!activeTab) return;
-        
+
         try {
             let url;
             if (activeTab === 'stackpilot-actions') {
@@ -424,20 +541,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 url = `/api/services/${activeTab}/logs?tail=200`;
             }
+
             const response = await fetch(url);
             if (!response.ok) throw new Error('API logs request failed');
-            
             const logLines = await response.json();
-            
-            // Optimization: Generate hash of log text to check for changes
             const logText = logLines.join('\n');
             const currentHash = getSimpleHash(logText);
-            if (currentHash === lastLogHash) {
-                return; // Nothing changed, skip render
-            }
+            if (currentHash === lastLogHash) return;
             lastLogHash = currentHash;
 
-            // Render logs
             if (logLines.length === 0) {
                 terminalBody.innerHTML = `<div class="log-line system-msg">No logs available for ${activeTab}. Service might be stopped.</div>`;
             } else {
@@ -445,21 +557,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     let className = 'log-line';
                     if (line.includes('[ERROR]') || line.toLowerCase().includes('error') || line.toLowerCase().includes('exception')) {
                         className += ' error-log';
-                    } else if (line.includes('[WARN]')) {
-                        className += ' system-msg';
-                    } else if (line.startsWith('[StackPilot]') || line.includes('[INFO]')) {
+                    } else if (line.includes('[WARN]') || line.startsWith('[StackPilot]') || line.includes('[INFO]')) {
                         className += ' system-msg';
                     }
-                    // Clean line HTML escaping
-                    const escaped = line
-                        .replace(/&/g, "&amp;")
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;");
-                    return `<div class="${className}">${escaped}</div>`;
+                    return `<div class="${className}">${escapeHtml(line)}</div>`;
                 }).join('');
             }
 
-            // Scroll if checked
             if (autoScrollCheck.checked) {
                 terminalBody.scrollTop = terminalBody.scrollHeight;
             }
@@ -468,7 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Utility: add message to terminal directly
     function addSystemLog(message, isError = false) {
         const line = document.createElement('div');
         line.className = 'log-line ' + (isError ? 'error-log' : 'system-msg');
@@ -479,12 +582,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Helper: simple fast string hash
     function getSimpleHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash |= 0; // Convert to 32bit integer
+            hash |= 0;
         }
         return hash.toString();
     }

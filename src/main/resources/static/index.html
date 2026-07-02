@@ -6,7 +6,6 @@
     <meta name="theme-color" content="#090d16">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>StackPilot - Service Orchestrator</title>
-    <!-- Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -15,7 +14,6 @@
 <body>
     <div class="glass-bg"></div>
     <div class="app-container">
-        <!-- Header -->
         <header>
             <div class="logo-area">
                 <span class="logo-icon">⚡</span>
@@ -34,139 +32,23 @@
             </div>
         </header>
 
-        <!-- Services Status Section -->
         <main>
-            <section class="services-grid">
-                <!-- Python Downloader Card -->
-                <div class="card" id="card-python-downloader">
-                    <div class="card-header">
-                        <h3>Python Downloader</h3>
-                        <span class="status-badge status-stopped" id="status-python-downloader">Stopped</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Dir:</span>
-                            <span class="value path" title="E:\Source\grok_dev\python">python/</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Port:</span>
-                            <span class="value" id="port-python-downloader">N/A</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">PID:</span>
-                            <span class="value pid" id="pid-python-downloader">-</span>
-                        </div>
-                        <div class="info-row error-row" id="err-row-python-downloader" style="display: none;">
-                            <span class="label">Error:</span>
-                            <span class="value error-msg" id="err-python-downloader"></span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-card btn-success start-btn" data-service="python-downloader">Start</button>
-                        <button class="btn btn-card btn-warning restart-btn" data-service="python-downloader">Restart</button>
-                        <button class="btn btn-card btn-danger stop-btn" data-service="python-downloader">Stop</button>
-                    </div>
+            <section class="section-block">
+                <div class="section-heading">
+                    <h2>Application Services</h2>
+                    <p>Managed from <code>application.yml</code> — cards built dynamically from <code>/api/services</code></p>
                 </div>
-
-                <!-- Python Order RSI Card -->
-                <div class="card" id="card-python-order-rsi">
-                    <div class="card-header">
-                        <h3>Python Order RSI</h3>
-                        <span class="status-badge status-stopped" id="status-python-order-rsi">Stopped</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Dir:</span>
-                            <span class="value path" title="E:\Source\grok_dev\python">python/</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Port:</span>
-                            <span class="value" id="port-python-order-rsi">N/A</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">PID:</span>
-                            <span class="value pid" id="pid-python-order-rsi">-</span>
-                        </div>
-                        <div class="info-row error-row" id="err-row-python-order-rsi" style="display: none;">
-                            <span class="label">Error:</span>
-                            <span class="value error-msg" id="err-python-order-rsi"></span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-card btn-success start-btn" data-service="python-order-rsi">Start</button>
-                        <button class="btn btn-card btn-warning restart-btn" data-service="python-order-rsi">Restart</button>
-                        <button class="btn btn-card btn-danger stop-btn" data-service="python-order-rsi">Stop</button>
-                    </div>
-                </div>
-
-                <!-- Backend Card -->
-                <div class="card" id="card-backend">
-                    <div class="card-header">
-                        <h3>Backend Service</h3>
-                        <span class="status-badge status-stopped" id="status-backend">Stopped</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Dir:</span>
-                            <span class="value path" title="E:\Source\grok_dev\backend">backend/</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Port:</span>
-                            <span class="value" id="port-backend">8081</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">PID:</span>
-                            <span class="value pid" id="pid-backend">-</span>
-                        </div>
-                        <div class="info-row error-row" id="err-row-backend" style="display: none;">
-                            <span class="label">Error:</span>
-                            <span class="value error-msg" id="err-backend"></span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-card btn-success start-btn" data-service="backend">Start</button>
-                        <button class="btn btn-card btn-warning restart-btn" data-service="backend">Restart</button>
-                        <button class="btn btn-card btn-danger stop-btn" data-service="backend">Stop</button>
-                    </div>
-                </div>
-
-                <!-- Frontend Card -->
-                <div class="card" id="card-frontend">
-                    <div class="card-header">
-                        <h3>Frontend UI</h3>
-                        <span class="status-badge status-stopped" id="status-frontend">Stopped</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">Dir:</span>
-                            <span class="value path" title="E:\Source\grok_dev\frontend">frontend/</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Port:</span>
-                            <span class="value" id="port-frontend">4200</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">PID:</span>
-                            <span class="value pid" id="pid-frontend">-</span>
-                        </div>
-                        <div class="info-row error-row" id="err-row-frontend" style="display: none;">
-                            <span class="label">Error:</span>
-                            <span class="value error-msg" id="err-frontend"></span>
-                        </div>
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-card btn-success start-btn" data-service="frontend">Start</button>
-                        <button class="btn btn-card btn-warning restart-btn" data-service="frontend">Restart</button>
-                        <button class="btn btn-card btn-danger stop-btn" data-service="frontend">Stop</button>
+                <div id="services-grid" class="services-grid">
+                    <div class="card card-loading">
+                        <p>Loading services...</p>
                     </div>
                 </div>
             </section>
 
-            <!-- Infrastructure Section -->
             <section class="section-block">
                 <div class="section-heading">
                     <h2>Infrastructure</h2>
-                    <p>Reverse proxy and deployment tools from <code>Deployment/</code></p>
+                    <p>Reverse proxy from <code>deployment/</code> — sync with <code>deployment/scripts/sync-nginx-config.ps1</code></p>
                 </div>
                 <div class="services-grid infrastructure-grid">
                     <div class="card card-infra" id="card-nginx">
@@ -207,7 +89,6 @@
                 </div>
             </section>
 
-            <!-- Host Controls Section -->
             <section class="section-block section-danger">
                 <div class="section-heading">
                     <h2>Host Controls</h2>
@@ -222,33 +103,24 @@
                         <button class="btn btn-warning btn-glow" id="btn-host-restart" type="button">Restart Server</button>
                         <button class="btn btn-danger" id="btn-host-shutdown" type="button">Shutdown Server</button>
                     </div>
-                    <p class="host-hint">Type the exact confirmation phrase when prompted. Requires Administrator privileges.</p>
+                    <p class="host-hint">Confirmation uses the modal below — type the exact phrase from server config.</p>
                 </div>
             </section>
 
-            <!-- Logs Section -->
             <section class="logs-section">
                 <div class="logs-header">
-                    <div class="logs-tabs" role="tablist" aria-label="Log sources">
-                        <button class="tab-btn active" type="button" role="tab" data-tab="python-downloader">Downloader</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="python-order-rsi">Order RSI</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="backend">Backend</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="frontend">Frontend</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="nginx-error">NGINX Error</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="nginx-access">NGINX Access</button>
-                        <button class="tab-btn" type="button" role="tab" data-tab="stackpilot-actions">Actions</button>
-                    </div>
+                    <div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="Log sources"></div>
                     <div class="logs-controls">
                         <label class="auto-scroll-container">
                             <input type="checkbox" id="chk-autoscroll" checked>
                             <span>Auto Scroll</span>
                         </label>
-                        <button id="btn-clear-logs" class="btn btn-secondary">Clear View</button>
+                        <button id="btn-clear-logs" class="btn btn-secondary" type="button">Clear View</button>
                     </div>
                 </div>
                 <div class="terminal-container">
                     <div class="terminal" id="terminal-body">
-                        <div class="log-line system-msg">Select a tab to view service logs. Polling is active.</div>
+                        <div class="log-line system-msg">Loading log tabs...</div>
                     </div>
                 </div>
             </section>
@@ -257,6 +129,22 @@
         <footer>
             <p>StackPilot Dashboard • Running on Java 21 & Spring Boot 3.3.1</p>
         </footer>
+    </div>
+
+    <div id="host-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="host-modal-title">
+        <div class="modal-backdrop" id="host-modal-backdrop"></div>
+        <div class="modal-panel">
+            <h3 id="host-modal-title">Host action</h3>
+            <p id="host-modal-desc" class="modal-desc"></p>
+            <label class="modal-label" for="host-modal-phrase">Confirmation phrase</label>
+            <input id="host-modal-phrase" class="modal-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type phrase exactly">
+            <p class="host-modal-expected">Expected: <code id="host-modal-expected"></code></p>
+            <p id="host-modal-error" class="modal-error hidden"></p>
+            <div class="modal-actions">
+                <button id="host-modal-cancel" class="btn btn-secondary" type="button">Cancel</button>
+                <button id="host-modal-confirm" class="btn btn-danger" type="button" disabled>Confirm</button>
+            </div>
+        </div>
     </div>
 
     <script src="/js/app.js"></script>
