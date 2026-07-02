@@ -2,8 +2,8 @@
 # Run as Administrator in PowerShell.
 #
 # Creates:
-#   StackPilot-NGINX-Boot    — starts NGINX ~30s after boot
-#   StackPilot-Manager-Boot  — starts Stack Pilot JAR ~60s after boot
+#   StackPilot-NGINX-Boot    - starts NGINX ~30s after boot
+#   StackPilot-Manager-Boot  - starts Stack Pilot JAR ~60s after boot
 #
 # Stack Pilot then auto-starts nginx (fallback) + all grok_dev services per application.yml boot settings.
 
@@ -14,13 +14,13 @@ $StackPilotHome      = if ($env:STACK_PILOT_HOME) { $env:STACK_PILOT_HOME } else
 $StartNginxScript    = Join-Path $DeploymentScripts "start-nginx.ps1"
 $StartPilotScript    = Join-Path $StackPilotHome "scripts\start-stack-pilot.ps1"
 
-Write-Host "=== Stack Pilot — Boot Task Setup ===" -ForegroundColor Cyan
+Write-Host "=== Stack Pilot - Boot Task Setup ===" -ForegroundColor Cyan
 Write-Host "NGINX script : $StartNginxScript"
 Write-Host "Pilot script : $StartPilotScript"
 Write-Host ""
 
 if (-not (Test-Path $StartNginxScript)) {
-    Write-Error "Missing $StartNginxScript — set DEPLOYMENT_SCRIPTS or install Deployment repo."
+    Write-Error "Missing $StartNginxScript - set DEPLOYMENT_SCRIPTS or install Deployment repo."
     exit 1
 }
 if (-not (Test-Path $StartPilotScript)) {
@@ -28,8 +28,7 @@ if (-not (Test-Path $StartPilotScript)) {
     exit 1
 }
 
-# Build JAR once so the boot task does not depend on Maven at runtime
-Write-Host "Building Stack Pilot JAR (mvn package)..." -ForegroundColor Yellow
+    Write-Host "Building Stack Pilot JAR (mvn package)..." -ForegroundColor Yellow
 Push-Location $StackPilotHome
 try {
     & mvn -q package -DskipTests
