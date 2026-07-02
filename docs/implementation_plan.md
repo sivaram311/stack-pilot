@@ -190,7 +190,9 @@ Confirmation phrases are configured in `application.yml` under `stackpilot.host`
 
 ## 8. Boot recovery — auto-start after machine restart
 
-Nothing starts automatically until boot tasks are registered. DNS still resolves, but ports **80**, **8091**, **4200**, and **8081** stay down until NGINX and Stack Pilot run.
+Boot tasks are **registered on this server** (2026-07-02). After reboot, NGINX and Stack Pilot start automatically; Stack Pilot then auto-starts grok_dev services.
+
+Until boot tasks are registered on a new machine, ports **80**, **8091**, **4200**, and **8081** stay down after restart even though DNS still resolves.
 
 ### Bootstrap chain
 
@@ -242,6 +244,26 @@ Builds the JAR with Maven if missing, then runs `java -jar target/stack-pilot-*.
 Get-ScheduledTask -TaskName 'StackPilot-*' | Format-Table TaskName, State
 E:\Source\Deployment\scripts\status-nginx.ps1
 curl http://localhost:8091/api/services
+curl http://control.delena.buzz/api/services
+```
+
+### Public domain — control.delena.buzz
+
+NGINX proxies `control.delena.buzz` → `127.0.0.1:8091`. Stack Pilot must be listening on **8091** and NGINX on **80** for the public URL to work.
+
+| URL | Purpose |
+| :--- | :--- |
+| http://control.delena.buzz/ | Dashboard UI |
+| http://control.delena.buzz/api/services | Service status JSON |
+| http://localhost:8091/ | Same UI (direct, no NGINX) |
+
+**Validated 2026-07-02:** UI, `/api/services`, `/api/infrastructure/nginx/status`, and `/api/host/status` all returned **HTTP 200** on `control.delena.buzz`.
+
+Quick check:
+
+```powershell
+Invoke-WebRequest http://control.delena.buzz/ -UseBasicParsing | Select-Object StatusCode
+Invoke-WebRequest http://control.delena.buzz/api/services -UseBasicParsing | Select-Object StatusCode
 ```
 
 ### Prerequisites still manual

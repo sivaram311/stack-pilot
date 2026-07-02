@@ -35,7 +35,7 @@ if (-not $java) {
 
 $jar = Find-StackPilotJar
 if (-not $jar) {
-    Write-Host "JAR not found — building with Maven..."
+    Write-Host "JAR not found - building with Maven..."
     $mvn = Get-Command mvn -ErrorAction SilentlyContinue
     if (-not $mvn) {
         Write-Error "Maven not found. Run: cd $StackPilotHome; mvn package -DskipTests"
