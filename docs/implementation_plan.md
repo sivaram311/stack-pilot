@@ -103,6 +103,16 @@ The application will expose the following endpoints:
 | `/api/services/{name}/stop` | `POST` | Stop a specific service |
 | `/api/services/{name}/restart` | `POST` | Restart a specific service |
 | `/api/services/{name}/logs` | `GET` | Get recent logs for a service (supports query param `tail` for line limit) |
+| `/api/infrastructure/nginx/status` | `GET` | NGINX process, config test, health checks |
+| `/api/infrastructure/nginx/start` | `POST` | Start NGINX |
+| `/api/infrastructure/nginx/stop` | `POST` | Stop NGINX gracefully |
+| `/api/infrastructure/nginx/reload` | `POST` | Test config and reload NGINX |
+| `/api/infrastructure/nginx/logs/error` | `GET` | Tail NGINX error log |
+| `/api/infrastructure/nginx/logs/access` | `GET` | Tail NGINX access log |
+| `/api/host/status` | `GET` | Host control config and pending shutdown state |
+| `/api/host/restart` | `POST` | Schedule server restart (requires `confirmPhrase` in body) |
+| `/api/host/shutdown` | `POST` | Schedule server shutdown (requires `confirmPhrase` in body) |
+| `/api/host/cancel` | `POST` | Cancel a pending restart/shutdown |
 
 ---
 
@@ -114,3 +124,64 @@ A lightweight, modern, responsive single-page dashboard will be hosted directly 
   * Quick-action buttons (Start, Stop, Restart) per service.
   * Real-time rolling log terminal viewer that updates dynamically using polling or Server-Sent Events.
   * A button to start all or stop all services at once.
+
+---
+
+## 6. Infrastructure — NGINX (Deployment integration)
+
+Stack Pilot wraps the PowerShell tooling in `E:\Source\Deployment\scripts\` and exposes nginx lifecycle control from the dashboard **Infrastructure** section.
+
+| Action | API | Equivalent script |
+| :--- | :--- | :--- |
+| Status + health | `GET /api/infrastructure/nginx/status` | `status-nginx.ps1` |
+| Start | `POST /api/infrastructure/nginx/start` | `start-nginx.ps1` |
+| Stop | `POST /api/infrastructure/nginx/stop` | `stop-nginx.ps1` |
+| Reload config | `POST /api/infrastructure/nginx/reload` | `reload-nginx.ps1` |
+| Error log tail | `GET /api/infrastructure/nginx/logs/error?tail=200` | `error.log` |
+| Access log tail | `GET /api/infrastructure/nginx/logs/access?tail=200` | `access.log` |
+
+Configuration in `application.yml` under `stackpilot.nginx`:
+
+| Key | Default | Description |
+| :--- | :--- | :--- |
+| `home` | `C:/nginx-1.30.3` | NGINX install directory |
+| `port` | `80` | Listener port for status checks |
+| `error-log` | `logs/error.log` | Relative to `home` |
+| `access-log` | `logs/access.log` | Relative to `home` |
+| `health-checks` | localhost, delena.buzz, control.delena.buzz | HTTP probes from status endpoint |
+
+Status includes upstream port checks for frontend (`4200`), backend (`8081`), and Stack Pilot (`8091`).
+
+**Note:** Application service bulk actions (Start All / Stop All) do **not** include nginx — manage it separately in Infrastructure.
+
+---
+
+## 7. Host Controls — Server restart / shutdown
+
+The **Host Controls** section schedules Windows `shutdown` commands with a configurable delay (default **60 seconds**).
+
+| Action | API | Windows command |
+| :--- | :--- | :--- |
+| Status | `GET /api/host/status` | — |
+| Restart server | `POST /api/host/restart` | `shutdown /r /t 60` |
+| Shutdown server | `POST /api/host/shutdown` | `shutdown /s /t 60` |
+| Cancel pending | `POST /api/host/cancel` | `shutdown /a` |
+
+Request body for restart/shutdown:
+
+```json
+{ "confirmPhrase": "RESTART SERVER" }
+```
+
+Confirmation phrases are configured in `application.yml` under `stackpilot.host`:
+
+| Key | Default |
+| :--- | :--- |
+| `enabled` | `true` |
+| `shutdown-delay-seconds` | `60` |
+| `confirm-phrase-restart` | `RESTART SERVER` |
+| `confirm-phrase-shutdown` | `SHUTDOWN SERVER` |
+
+**Safety:** The dashboard requires typing the exact phrase plus a final browser confirm dialog. Host actions need **Administrator** privileges on Windows.
+
+**Public exposure:** `control.delena.buzz` proxies to Stack Pilot — restrict access (firewall, VPN, or auth) if host controls should not be reachable from the internet.

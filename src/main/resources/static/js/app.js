@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastLogHash = '';
     let pollingInterval = null;
     let services = [];
+    let hostConfig = { confirmPhraseRestart: 'RESTART SERVER', confirmPhraseShutdown: 'SHUTDOWN SERVER', shutdownDelaySeconds: 60 };
 
     // DOM Elements
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -13,6 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const startAllBtn = document.getElementById('btn-start-all');
     const restartAllBtn = document.getElementById('btn-restart-all');
     const stopAllBtn = document.getElementById('btn-stop-all');
+    const nginxStartBtn = document.getElementById('btn-nginx-start');
+    const nginxStopBtn = document.getElementById('btn-nginx-stop');
+    const nginxReloadBtn = document.getElementById('btn-nginx-reload');
+    const nginxStatusBtn = document.getElementById('btn-nginx-status');
+    const hostRestartBtn = document.getElementById('btn-host-restart');
+    const hostShutdownBtn = document.getElementById('btn-host-shutdown');
+    const hostCancelBtn = document.getElementById('btn-host-cancel');
 
     // Initial load
     init();
@@ -20,11 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function init() {
         setupEventListeners();
         fetchStatus();
+        fetchNginxStatus();
+        fetchHostStatus();
         fetchLogs();
         
         // Start polling status and active logs every 1.5 seconds
         pollingInterval = setInterval(() => {
             fetchStatus();
+            fetchNginxStatus();
+            fetchHostStatus();
             fetchLogs();
         }, 1500);
     }
@@ -63,6 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         stopAllBtn.addEventListener('click', () => callBulkAction('stop-all', 'Stopping all services'));
+
+        nginxStartBtn.addEventListener('click', () => callNginxAction('start', 'Starting nginx'));
+        nginxStopBtn.addEventListener('click', () => {
+            if (confirm('Stop nginx? Public sites will be unreachable until it is started again.')) {
+                callNginxAction('stop', 'Stopping nginx');
+            }
+        });
+        nginxReloadBtn.addEventListener('click', () => callNginxAction('reload', 'Reloading nginx config'));
+        nginxStatusBtn.addEventListener('click', () => fetchNginxStatus());
+
+        hostRestartBtn.addEventListener('click', () => callHostAction('restart'));
+        hostShutdownBtn.addEventListener('click', () => callHostAction('shutdown'));
+        hostCancelBtn.addEventListener('click', () => callHostCancel());
 
         // Utility actions
         clearLogsBtn.addEventListener('click', () => {
@@ -164,6 +189,181 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function fetchNginxStatus() {
+        try {
+            const response = await fetch('/api/infrastructure/nginx/status');
+            if (!response.ok) throw new Error('nginx status request failed');
+            const status = await response.json();
+            updateNginxCard(status);
+        } catch (error) {
+            console.error('Error fetching nginx status:', error);
+        }
+    }
+
+    function updateNginxCard(status) {
+        const statusBadge = document.getElementById('status-nginx');
+        const homeSpan = document.getElementById('nginx-home');
+        const portSpan = document.getElementById('nginx-port');
+        const pidsSpan = document.getElementById('nginx-pids');
+        const configSpan = document.getElementById('nginx-config');
+        const errorRow = document.getElementById('err-row-nginx');
+        const errorMsg = document.getElementById('err-nginx');
+        const healthGrid = document.getElementById('nginx-health-grid');
+
+        if (!statusBadge) return;
+
+        statusBadge.className = 'status-badge';
+        if (status.running) {
+            statusBadge.classList.add('status-running');
+            statusBadge.textContent = 'Running';
+        } else {
+            statusBadge.classList.add('status-stopped');
+            statusBadge.textContent = 'Stopped';
+        }
+
+        if (homeSpan) homeSpan.textContent = status.home || '-';
+        if (portSpan) portSpan.textContent = status.port != null ? status.port : '80';
+        if (pidsSpan) {
+            const pids = Array.isArray(status.pids) ? status.pids : [];
+            pidsSpan.textContent = pids.length ? pids.join(', ') : '-';
+        }
+
+        const configOk = status.configTest && status.configTest.success;
+        if (configSpan) {
+            configSpan.textContent = configOk ? 'OK' : 'Failed';
+            configSpan.style.color = configOk ? '#34d399' : '#f87171';
+        }
+
+        if (healthGrid) {
+            const checks = Array.isArray(status.healthChecks) ? status.healthChecks : [];
+            const upstream = status.upstreamChecks || {};
+            const upstreamHtml = Object.entries(upstream).map(([key, up]) => {
+                const labels = {
+                    frontend4200: 'frontend :4200',
+                    stackPilot8091: 'stack-pilot :8091',
+                    backend8081: 'backend :8081'
+                };
+                const label = labels[key] || key;
+                return `<span class="health-pill ${up ? 'up' : 'down'}">${label} ${up ? 'up' : 'down'}</span>`;
+            }).join('');
+            const checksHtml = checks.map(c => {
+                const ok = c.success;
+                const detail = ok ? (c.statusCode || 'OK') : (c.error || 'fail');
+                return `<span class="health-pill ${ok ? 'up' : 'down'}">${c.name}: ${detail}</span>`;
+            }).join('');
+            healthGrid.innerHTML = checksHtml + upstreamHtml;
+        }
+
+        const failedChecks = (status.healthChecks || []).filter(c => !c.success);
+        if (!status.running || !configOk || failedChecks.length > 0) {
+            const parts = [];
+            if (!status.running) parts.push('nginx is not running');
+            if (!configOk) parts.push('config test failed');
+            if (failedChecks.length) parts.push('health check failures: ' + failedChecks.map(c => c.name).join(', '));
+            errorRow.style.display = 'flex';
+            errorMsg.textContent = parts.join('; ');
+        } else {
+            errorRow.style.display = 'none';
+        }
+
+        nginxStartBtn.disabled = !!status.running;
+        nginxStopBtn.disabled = !status.running;
+        nginxReloadBtn.disabled = !status.running;
+    }
+
+    async function callNginxAction(action, label) {
+        addSystemLog(`Triggered: ${label}...`);
+        try {
+            const response = await fetch(`/api/infrastructure/nginx/${action}`, { method: 'POST' });
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const result = await response.json();
+            addSystemLog(result.message || `${label} finished.`, !result.success);
+            fetchNginxStatus();
+            if (activeTab === 'nginx-error' || activeTab === 'nginx-access') {
+                fetchLogs();
+            }
+        } catch (error) {
+            addSystemLog(`nginx ${action} failed: ${error.message}`, true);
+        }
+    }
+
+    async function fetchHostStatus() {
+        try {
+            const response = await fetch('/api/host/status');
+            if (!response.ok) throw new Error('host status request failed');
+            const status = await response.json();
+            if (status.confirmPhraseRestart) hostConfig.confirmPhraseRestart = status.confirmPhraseRestart;
+            if (status.confirmPhraseShutdown) hostConfig.confirmPhraseShutdown = status.confirmPhraseShutdown;
+            if (status.shutdownDelaySeconds) hostConfig.shutdownDelaySeconds = status.shutdownDelaySeconds;
+
+            const delayLabel = document.getElementById('host-delay-label');
+            if (delayLabel) delayLabel.textContent = hostConfig.shutdownDelaySeconds;
+
+            const banner = document.getElementById('host-pending-banner');
+            const text = document.getElementById('host-pending-text');
+            const pending = status.pending || {};
+            if (pending.active) {
+                banner.style.display = 'flex';
+                text.textContent = `${pending.action} scheduled — ${pending.remainingSeconds}s remaining`;
+                hostRestartBtn.disabled = true;
+                hostShutdownBtn.disabled = true;
+            } else {
+                banner.style.display = 'none';
+                hostRestartBtn.disabled = !status.enabled;
+                hostShutdownBtn.disabled = !status.enabled;
+            }
+        } catch (error) {
+            console.error('Error fetching host status:', error);
+        }
+    }
+
+    async function callHostAction(action) {
+        const isRestart = action === 'restart';
+        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
+        const warning = isRestart
+            ? `This will RESTART the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds.\n\nType the confirmation phrase exactly:`
+            : `This will SHUTDOWN the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds.\n\nType the confirmation phrase exactly:`;
+
+        const typed = prompt(warning, '');
+        if (typed === null) return;
+        if (typed.trim() !== phraseRequired) {
+            addSystemLog(`Host ${action} cancelled: confirmation phrase did not match.`, true);
+            return;
+        }
+
+        if (!confirm(`Final confirmation: schedule server ${action} in ${hostConfig.shutdownDelaySeconds} seconds?`)) {
+            return;
+        }
+
+        addSystemLog(`Scheduling host ${action}...`);
+        try {
+            const response = await fetch(`/api/host/${action}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmPhrase: typed.trim() })
+            });
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const result = await response.json();
+            addSystemLog(result.message || `Host ${action} scheduled.`, !result.success);
+            fetchHostStatus();
+        } catch (error) {
+            addSystemLog(`Host ${action} failed: ${error.message}`, true);
+        }
+    }
+
+    async function callHostCancel() {
+        addSystemLog('Cancelling pending host action...');
+        try {
+            const response = await fetch('/api/host/cancel', { method: 'POST' });
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            const result = await response.json();
+            addSystemLog(result.message || 'Host action cancelled.', !result.success);
+            fetchHostStatus();
+        } catch (error) {
+            addSystemLog(`Host cancel failed: ${error.message}`, true);
+        }
+    }
+
     async function callBulkAction(action, label) {
         addSystemLog(`Triggered: ${label}...`);
         try {
@@ -214,9 +414,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeTab) return;
         
         try {
-            const url = activeTab === 'stackpilot-actions'
-                ? '/api/manager/logs?tail=200'
-                : `/api/services/${activeTab}/logs?tail=200`;
+            let url;
+            if (activeTab === 'stackpilot-actions') {
+                url = '/api/manager/logs?tail=200';
+            } else if (activeTab === 'nginx-error') {
+                url = '/api/infrastructure/nginx/logs/error?tail=200';
+            } else if (activeTab === 'nginx-access') {
+                url = '/api/infrastructure/nginx/logs/access?tail=200';
+            } else {
+                url = `/api/services/${activeTab}/logs?tail=200`;
+            }
             const response = await fetch(url);
             if (!response.ok) throw new Error('API logs request failed');
             

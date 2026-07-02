@@ -162,6 +162,70 @@
                 </div>
             </section>
 
+            <!-- Infrastructure Section -->
+            <section class="section-block">
+                <div class="section-heading">
+                    <h2>Infrastructure</h2>
+                    <p>Reverse proxy and deployment tools from <code>Deployment/</code></p>
+                </div>
+                <div class="services-grid infrastructure-grid">
+                    <div class="card card-infra" id="card-nginx">
+                        <div class="card-header">
+                            <h3>NGINX</h3>
+                            <span class="status-badge status-stopped" id="status-nginx">Stopped</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-row">
+                                <span class="label">Home:</span>
+                                <span class="value path" id="nginx-home" title="C:\nginx-1.30.3">C:\nginx-1.30.3</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Port:</span>
+                                <span class="value" id="nginx-port">80</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">PIDs:</span>
+                                <span class="value pid" id="nginx-pids">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Config:</span>
+                                <span class="value" id="nginx-config">-</span>
+                            </div>
+                            <div class="info-row error-row" id="err-row-nginx" style="display: none;">
+                                <span class="label">Detail:</span>
+                                <span class="value error-msg" id="err-nginx"></span>
+                            </div>
+                            <div class="health-grid" id="nginx-health-grid"></div>
+                        </div>
+                        <div class="card-actions card-actions-4">
+                            <button class="btn btn-card btn-success" id="btn-nginx-start" type="button">Start</button>
+                            <button class="btn btn-card btn-danger" id="btn-nginx-stop" type="button">Stop</button>
+                            <button class="btn btn-card btn-warning" id="btn-nginx-reload" type="button">Reload</button>
+                            <button class="btn btn-card btn-secondary" id="btn-nginx-status" type="button">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Host Controls Section -->
+            <section class="section-block section-danger">
+                <div class="section-heading">
+                    <h2>Host Controls</h2>
+                    <p>Restart or shut down the entire Windows server. Actions use a <strong id="host-delay-label">60</strong>s delay — cancel before it expires.</p>
+                </div>
+                <div class="host-panel">
+                    <div class="host-status" id="host-pending-banner" style="display: none;">
+                        <span id="host-pending-text"></span>
+                        <button class="btn btn-warning" id="btn-host-cancel" type="button">Cancel</button>
+                    </div>
+                    <div class="host-actions">
+                        <button class="btn btn-warning btn-glow" id="btn-host-restart" type="button">Restart Server</button>
+                        <button class="btn btn-danger" id="btn-host-shutdown" type="button">Shutdown Server</button>
+                    </div>
+                    <p class="host-hint">Type the exact confirmation phrase when prompted. Requires Administrator privileges.</p>
+                </div>
+            </section>
+
             <!-- Logs Section -->
             <section class="logs-section">
                 <div class="logs-header">
@@ -170,6 +234,8 @@
                         <button class="tab-btn" type="button" role="tab" data-tab="python-order-rsi">Order RSI</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="backend">Backend</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="frontend">Frontend</button>
+                        <button class="tab-btn" type="button" role="tab" data-tab="nginx-error">NGINX Error</button>
+                        <button class="tab-btn" type="button" role="tab" data-tab="nginx-access">NGINX Access</button>
                         <button class="tab-btn" type="button" role="tab" data-tab="stackpilot-actions">Actions</button>
                     </div>
                     <div class="logs-controls">

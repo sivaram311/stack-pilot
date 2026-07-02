@@ -3,7 +3,9 @@ package com.stackpilot.manager.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -14,7 +16,33 @@ public class StackPilotProperties {
     private int maxLogLines = 500;
     /** Minimum milliseconds between external process scans per service (dashboard polling). */
     private long externalScanIntervalMs = 5000;
+    private NginxSettings nginx = new NginxSettings();
+    private HostSettings host = new HostSettings();
     private Map<String, ServiceDefinition> services = new LinkedHashMap<>();
+
+    @Data
+    public static class NginxSettings {
+        private String home = "C:/nginx-1.30.3";
+        private int port = 80;
+        private String errorLog = "logs/error.log";
+        private String accessLog = "logs/access.log";
+        private List<HealthCheck> healthChecks = new ArrayList<>();
+
+        @Data
+        public static class HealthCheck {
+            private String name;
+            private String url;
+            private String hostHeader;
+        }
+    }
+
+    @Data
+    public static class HostSettings {
+        private boolean enabled = true;
+        private int shutdownDelaySeconds = 60;
+        private String confirmPhraseRestart = "RESTART SERVER";
+        private String confirmPhraseShutdown = "SHUTDOWN SERVER";
+    }
 
     @Data
     public static class ServiceDefinition {

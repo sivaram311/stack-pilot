@@ -12,6 +12,25 @@ stackpilot:
   logs-dir: logs
   max-log-lines: 500
   external-scan-interval-ms: 5000
+  nginx:
+    home: "C:/nginx-1.30.3"
+    port: 80
+    error-log: logs/error.log
+    access-log: logs/access.log
+    health-checks:
+      - name: localhost
+        url: "http://localhost/"
+      - name: delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: delena.buzz
+      - name: control.delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: control.delena.buzz
+  host:
+    enabled: true
+    shutdown-delay-seconds: 60
+    confirm-phrase-restart: "RESTART SERVER"
+    confirm-phrase-shutdown: "SHUTDOWN SERVER"
   services:
     python-downloader:
       working-dir: "E:/Source/grok_dev/python"
@@ -33,7 +52,8 @@ stackpilot:
         ORDER_RSI_MODE: "tick"
         ORDER_RSI_TICK_MS: "250"
         ORDER_RSI_POLL_MS: "1000"
-        BROKER_SERVER_ZONE: "UTC"
+        ORDER_RSI_HISTORY_BARS: "5000"
+        BROKER_SERVER_ZONE: "Etc/GMT-3"
       log-file: order-rsi.log
       process-name: "python.exe"
       process-match: "run_order_rsi.py"

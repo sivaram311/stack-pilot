@@ -350,6 +350,111 @@ main {
     margin-top: auto;
 }
 
+.card-actions-4 {
+    flex-wrap: wrap;
+}
+
+.card-actions-4 .btn-card {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 0;
+}
+
+.section-block {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.section-heading h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.section-heading p {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.section-heading code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: #c4b5fd;
+}
+
+.section-danger .section-heading h2 {
+    color: #f87171;
+}
+
+.infrastructure-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+}
+
+.card-infra {
+    border-color: rgba(56, 189, 248, 0.15);
+}
+
+.health-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+}
+
+.health-pill {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 9999px;
+    font-family: var(--font-mono);
+}
+
+.health-pill.up {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+}
+
+.health-pill.down {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}
+
+.host-panel {
+    background: var(--card-bg);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.host-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 10px;
+    color: #fbbf24;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.host-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.host-hint {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
 .logs-section {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
