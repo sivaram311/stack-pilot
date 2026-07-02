@@ -301,3 +301,30 @@ Invoke-WebRequest http://control.delena.buzz/api/services -UseBasicParsing | Sel
 - **PostgreSQL** must be configured to start at boot (Windows service).
 - **MT5 terminal** must be logged in for Python downloader / order-rsi.
 - First-time setup: run `mvn package` or `setup-boot-tasks.ps1` (builds JAR automatically).
+
+---
+
+## 11. Host infrastructure — RDP session health
+
+**Implemented 2026-07-02.** Investigation found recurring `rdpcorets.dll` crashes causing RDP black-screen lockups.
+
+| Document | Purpose |
+| :--- | :--- |
+| [rdp-black-screen-root-cause.md](rdp-black-screen-root-cause.md) | Root cause, event-log evidence, failure chain |
+| [rdp-black-screen-fix-plan.md](rdp-black-screen-fix-plan.md) | Phased fixes and Stack Pilot merge plan |
+
+**Stack Pilot RDP API:**
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/infrastructure/rdp/status` | `GET` | TermService, sessions, last crash, `fResetBroken` |
+| `/api/infrastructure/rdp/recover` | `POST` | Log off stuck sessions + restart TermService |
+| `/api/infrastructure/rdp/apply-mitigations` | `POST` | Ensure `fResetBroken=1` |
+
+**Scripts:** `scripts/rdp-status.ps1`, `scripts/rdp-recover-session.ps1`, `scripts/rdp-apply-mitigations.ps1`, `scripts/rdp-health-check.ps1`
+
+**Scheduled task:** `StackPilot-RDP-Health-Check` (every 15 min) — registered by `setup-boot-tasks.ps1`
+
+**Boot:** `boot.auto-apply-rdp-mitigations: true` applies registry fix on Stack Pilot start.
+
+**OS fix applied:** `fResetBroken=1` on `RDP-Tcp`.

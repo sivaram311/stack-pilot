@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmPhraseShutdown: 'SHUTDOWN SERVER',
         shutdownDelaySeconds: 60
     };
+    let rdpConfig = {
+        confirmPhraseRecover: 'RECOVER RDP',
+        confirmPhraseApplyMitigations: 'APPLY RDP FIX'
+    };
 
     const LOG_TAB_LABELS = {
         'python-downloader': 'Downloader',
@@ -36,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const hostRestartBtn = document.getElementById('btn-host-restart');
     const hostShutdownBtn = document.getElementById('btn-host-shutdown');
     const hostCancelBtn = document.getElementById('btn-host-cancel');
+    const rdpRecoverBtn = document.getElementById('btn-rdp-recover');
+    const rdpMitigateBtn = document.getElementById('btn-rdp-mitigate');
+    const rdpRefreshBtn = document.getElementById('btn-rdp-refresh');
 
     const hostModal = document.getElementById('host-modal');
     const hostModalTitle = document.getElementById('host-modal-title');
@@ -53,12 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         fetchStatus();
         fetchNginxStatus();
+        fetchRdpStatus();
         fetchHostStatus();
         fetchLogs();
 
         pollingInterval = setInterval(() => {
             fetchStatus();
             fetchNginxStatus();
+            fetchRdpStatus();
             fetchHostStatus();
             fetchLogs();
         }, 1500);
@@ -97,6 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         hostRestartBtn.addEventListener('click', () => openHostModal('restart'));
         hostShutdownBtn.addEventListener('click', () => openHostModal('shutdown'));
         hostCancelBtn.addEventListener('click', () => callHostCancel());
+
+        rdpRecoverBtn.addEventListener('click', () => openHostModal('rdp-recover'));
+        rdpMitigateBtn.addEventListener('click', () => openHostModal('rdp-apply'));
+        rdpRefreshBtn.addEventListener('click', () => fetchRdpStatus());
 
         hostModalCancel.addEventListener('click', closeHostModal);
         hostModalBackdrop.addEventListener('click', closeHostModal);
@@ -290,19 +303,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openHostModal(action) {
         pendingHostAction = action;
-        const isRestart = action === 'restart';
-        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
-        const title = isRestart ? 'Restart Server' : 'Shutdown Server';
+        const configs = {
+            restart: {
+                title: 'Restart Server',
+                desc: `This will restart the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds. You can cancel from the dashboard until the timer expires.`,
+                phrase: hostConfig.confirmPhraseRestart,
+                btnClass: 'btn btn-warning',
+                btnLabel: 'Confirm Restart Server'
+            },
+            shutdown: {
+                title: 'Shutdown Server',
+                desc: `This will shut down the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds. You can cancel from the dashboard until the timer expires.`,
+                phrase: hostConfig.confirmPhraseShutdown,
+                btnClass: 'btn btn-danger',
+                btnLabel: 'Confirm Shutdown Server'
+            },
+            'rdp-recover': {
+                title: 'Recover RDP Session',
+                desc: 'Logs off active RDP sessions and restarts TermService. Use when the desktop is stuck on a black "Please wait" screen. Background services are not stopped.',
+                phrase: rdpConfig.confirmPhraseRecover,
+                btnClass: 'btn btn-warning',
+                btnLabel: 'Confirm Recover RDP'
+            },
+            'rdp-apply': {
+                title: 'Apply RDP Mitigations',
+                desc: 'Sets fResetBroken=1 so broken RDP sessions reset automatically after TermService crashes. Safe to run repeatedly.',
+                phrase: rdpConfig.confirmPhraseApplyMitigations,
+                btnClass: 'btn btn-success',
+                btnLabel: 'Confirm Apply Fix'
+            }
+        };
 
-        hostModalTitle.textContent = title;
-        hostModalDesc.textContent = `This will ${isRestart ? 'restart' : 'shut down'} the entire Windows server in ${hostConfig.shutdownDelaySeconds} seconds. You can cancel from the dashboard until the timer expires.`;
-        hostModalExpected.textContent = phraseRequired;
+        const cfg = configs[action];
+        if (!cfg) return;
+
+        hostModalTitle.textContent = cfg.title;
+        hostModalDesc.textContent = cfg.desc;
+        hostModalExpected.textContent = cfg.phrase;
         hostModalPhrase.value = '';
         hostModalError.classList.add('hidden');
         hostModalError.textContent = '';
         hostModalConfirm.disabled = true;
-        hostModalConfirm.className = isRestart ? 'btn btn-warning' : 'btn btn-danger';
-        hostModalConfirm.textContent = `Confirm ${title}`;
+        hostModalConfirm.className = cfg.btnClass;
+        hostModalConfirm.textContent = cfg.btnLabel;
         hostModal.classList.remove('hidden');
         hostModalPhrase.focus();
     }
@@ -316,8 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateHostModalConfirmState() {
         if (!pendingHostAction) return;
-        const isRestart = pendingHostAction === 'restart';
-        const phraseRequired = isRestart ? hostConfig.confirmPhraseRestart : hostConfig.confirmPhraseShutdown;
+        const phraseMap = {
+            restart: hostConfig.confirmPhraseRestart,
+            shutdown: hostConfig.confirmPhraseShutdown,
+            'rdp-recover': rdpConfig.confirmPhraseRecover,
+            'rdp-apply': rdpConfig.confirmPhraseApplyMitigations
+        };
+        const phraseRequired = phraseMap[pendingHostAction];
         const matches = hostModalPhrase.value.trim() === phraseRequired;
         hostModalConfirm.disabled = !matches;
         if (hostModalPhrase.value.length > 0 && !matches) {
@@ -334,6 +382,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const phrase = hostModalPhrase.value.trim();
         closeHostModal();
 
+        if (action === 'rdp-recover' || action === 'rdp-apply') {
+            const endpoint = action === 'rdp-recover' ? 'recover' : 'apply-mitigations';
+            addSystemLog(`RDP ${endpoint}...`);
+            try {
+                const response = await fetch(`/api/infrastructure/rdp/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirmPhrase: phrase })
+                });
+                if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+                const result = await response.json();
+                addSystemLog(result.message || `RDP ${endpoint} finished.`, !result.success);
+                fetchRdpStatus();
+            } catch (error) {
+                addSystemLog(`RDP ${endpoint} failed: ${error.message}`, true);
+            }
+            return;
+        }
+
         addSystemLog(`Scheduling host ${action}...`);
         try {
             const response = await fetch(`/api/host/${action}`, {
@@ -348,6 +415,93 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             addSystemLog(`Host ${action} failed: ${error.message}`, true);
         }
+    }
+
+    async function fetchRdpStatus() {
+        try {
+            const response = await fetch('/api/infrastructure/rdp/status');
+            if (!response.ok) throw new Error('RDP status request failed');
+            updateRdpCard(await response.json());
+        } catch (error) {
+            console.error('Error fetching RDP status:', error);
+        }
+    }
+
+    function updateRdpCard(status) {
+        const statusBadge = document.getElementById('status-rdp');
+        const termSpan = document.getElementById('rdp-termservice');
+        const fresetSpan = document.getElementById('rdp-freset');
+        const sessionsSpan = document.getElementById('rdp-sessions');
+        const crashesSpan = document.getElementById('rdp-crashes');
+        const lastCrashSpan = document.getElementById('rdp-last-crash');
+        const errorRow = document.getElementById('err-row-rdp');
+        const errorMsg = document.getElementById('err-rdp');
+
+        if (!statusBadge) return;
+
+        if (status.confirmPhraseRecover) rdpConfig.confirmPhraseRecover = status.confirmPhraseRecover;
+        if (status.confirmPhraseApplyMitigations) {
+            rdpConfig.confirmPhraseApplyMitigations = status.confirmPhraseApplyMitigations;
+        }
+
+        statusBadge.className = 'status-badge';
+        if (status.enabled === false) {
+            statusBadge.classList.add('status-stopped');
+            statusBadge.textContent = 'Disabled';
+            return;
+        }
+
+        const healthy = !!status.healthy;
+        if (healthy) {
+            statusBadge.classList.add('status-running');
+            statusBadge.textContent = 'Healthy';
+        } else {
+            statusBadge.classList.add('status-error');
+            statusBadge.textContent = 'Degraded';
+        }
+
+        const ts = status.termService || {};
+        if (termSpan) termSpan.textContent = ts.status || '-';
+        if (fresetSpan) {
+            const v = status.fResetBroken;
+            fresetSpan.textContent = v === 1 ? 'Enabled' : (v === 0 ? 'Disabled' : String(v ?? '-'));
+            fresetSpan.style.color = v === 1 ? '#34d399' : '#f87171';
+        }
+
+        const sessions = Array.isArray(status.sessions) ? status.sessions : [];
+        const activeRdp = sessions.filter(s => (s.sessionName || '').toLowerCase().includes('rdp'));
+        if (sessionsSpan) {
+            sessionsSpan.textContent = activeRdp.length
+                ? activeRdp.map(s => `#${s.id} ${s.state}`).join(', ')
+                : (sessions.length ? `${sessions.length} total` : 'none');
+        }
+
+        if (crashesSpan) crashesSpan.textContent = status.crashCount24h != null ? status.crashCount24h : '-';
+
+        const lc = status.lastRdpcoretsCrash;
+        if (lastCrashSpan) {
+            if (lc && lc.timeCreated) {
+                const short = lc.timeCreated.replace('T', ' ').slice(0, 19);
+                lastCrashSpan.textContent = short;
+                lastCrashSpan.title = lc.message || lc.timeCreated;
+            } else {
+                lastCrashSpan.textContent = 'none recent';
+                lastCrashSpan.title = '';
+            }
+        }
+
+        const warnings = Array.isArray(status.warnings) ? status.warnings : [];
+        if (status.error) warnings.push(status.error);
+        if (warnings.length) {
+            errorRow.style.display = 'flex';
+            errorMsg.textContent = warnings.join('; ');
+        } else {
+            errorRow.style.display = 'none';
+        }
+
+        const enabled = status.enabled !== false;
+        rdpRecoverBtn.disabled = !enabled;
+        rdpMitigateBtn.disabled = !enabled;
     }
 
     async function fetchNginxStatus() {

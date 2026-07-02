@@ -17,6 +17,7 @@ public class StackPilotProperties {
     /** Minimum milliseconds between external process scans per service (dashboard polling). */
     private long externalScanIntervalMs = 5000;
     private NginxSettings nginx = new NginxSettings();
+    private RdpSettings rdp = new RdpSettings();
     private HostSettings host = new HostSettings();
     private BootSettings boot = new BootSettings();
     private Map<String, ServiceDefinition> services = new LinkedHashMap<>();
@@ -27,8 +28,26 @@ public class StackPilotProperties {
         private boolean autoStartServices = true;
         /** Fallback: start nginx from Stack Pilot if the boot task did not (already-running is a no-op). */
         private boolean autoStartNginx = true;
+        /** Ensure fResetBroken=1 on boot (idempotent). */
+        private boolean autoApplyRdpMitigations = true;
         /** Wait after JVM start before boot actions (network, Postgres, MT5). */
         private long startupDelayMs = 45000;
+    }
+
+    @Data
+    public static class RdpSettings {
+        private boolean enabled = true;
+        private String scriptsHome = "E:/Source/stack-pilot";
+        private String confirmPhraseRecover = "RECOVER RDP";
+        private String confirmPhraseApplyMitigations = "APPLY RDP FIX";
+        private MonitorSettings monitor = new MonitorSettings();
+
+        @Data
+        public static class MonitorSettings {
+            private boolean enabled = true;
+            private long pollIntervalMs = 60000;
+            private int alertAfterCrashesInHours = 2;
+        }
     }
 
     @Data

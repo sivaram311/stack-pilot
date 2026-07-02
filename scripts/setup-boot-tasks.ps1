@@ -98,6 +98,42 @@ try {
         -ScriptPath $StartPilotScript `
         -DelaySeconds 60
 
+    $RdpHealthScript = Join-Path $StackPilotHome "scripts\rdp-health-check.ps1"
+    if (Test-Path $RdpHealthScript) {
+        $existing = Get-ScheduledTask -TaskName "StackPilot-RDP-Health-Check" -ErrorAction SilentlyContinue
+        if ($existing) {
+            Unregister-ScheduledTask -TaskName "StackPilot-RDP-Health-Check" -Confirm:$false
+        }
+
+        $rdpAction = New-ScheduledTaskAction `
+            -Execute "powershell.exe" `
+            -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$RdpHealthScript`""
+
+        $rdpTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650)
+
+        $rdpSettings = New-ScheduledTaskSettingsSet `
+            -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries `
+            -StartWhenAvailable `
+            -DontStopOnIdleEnd
+
+        $rdpPrincipal = New-ScheduledTaskPrincipal `
+            -UserId "SYSTEM" `
+            -RunLevel Highest `
+            -LogonType ServiceAccount
+
+        Register-ScheduledTask `
+            -TaskName "StackPilot-RDP-Health-Check" `
+            -Action $rdpAction `
+            -Trigger $rdpTrigger `
+            -Settings $rdpSettings `
+            -Principal $rdpPrincipal `
+            -Description "Monitor TermService and recover RDP after rdpcorets crashes (every 15 min)" `
+            -Force | Out-Null
+
+        Write-Host "Registered task 'StackPilot-RDP-Health-Check' (every 15 min)" -ForegroundColor Green
+    }
+
     Write-Host ""
     Write-Host "Boot tasks registered successfully." -ForegroundColor Green
     Write-Host ""

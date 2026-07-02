@@ -31,9 +31,19 @@ stackpilot:
     shutdown-delay-seconds: 60
     confirm-phrase-restart: "RESTART SERVER"
     confirm-phrase-shutdown: "SHUTDOWN SERVER"
+  rdp:
+    enabled: true
+    scripts-home: "E:/Source/stack-pilot"
+    confirm-phrase-recover: "RECOVER RDP"
+    confirm-phrase-apply-mitigations: "APPLY RDP FIX"
+    monitor:
+      enabled: true
+      poll-interval-ms: 60000
+      alert-after-crashes-in-hours: 2
   boot:
     auto-start-services: true
     auto-start-nginx: true
+    auto-apply-rdp-mitigations: true
     startup-delay-ms: 45000
   services:
     python-downloader:

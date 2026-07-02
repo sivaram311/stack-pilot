@@ -3,6 +3,7 @@ package com.stackpilot.manager.boot;
 import com.stackpilot.manager.config.StackPilotProperties;
 import com.stackpilot.manager.service.ManagerActionLog;
 import com.stackpilot.manager.service.NginxManager;
+import com.stackpilot.manager.service.RdpHealthService;
 import com.stackpilot.manager.service.ServiceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,23 +24,26 @@ public class BootStartupRunner implements ApplicationRunner {
     private final StackPilotProperties properties;
     private final ServiceManager serviceManager;
     private final NginxManager nginxManager;
+    private final RdpHealthService rdpHealthService;
     private final ManagerActionLog actionLog;
 
     public BootStartupRunner(
             StackPilotProperties properties,
             ServiceManager serviceManager,
             NginxManager nginxManager,
+            RdpHealthService rdpHealthService,
             ManagerActionLog actionLog) {
         this.properties = properties;
         this.serviceManager = serviceManager;
         this.nginxManager = nginxManager;
+        this.rdpHealthService = rdpHealthService;
         this.actionLog = actionLog;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         StackPilotProperties.BootSettings boot = properties.getBoot();
-        if (!boot.isAutoStartNginx() && !boot.isAutoStartServices()) {
+        if (!boot.isAutoStartNginx() && !boot.isAutoStartServices() && !boot.isAutoApplyRdpMitigations()) {
             return;
         }
 
@@ -56,6 +60,17 @@ public class BootStartupRunner implements ApplicationRunner {
             log.info("Boot startup: waiting {} ms before auto-start actions", delayMs);
             actionLog.info("Boot startup: waiting " + (delayMs / 1000) + "s before auto-start");
             pause(delayMs);
+        }
+
+        if (boot.isAutoApplyRdpMitigations() && properties.getRdp().isEnabled()) {
+            log.info("Boot startup: applying RDP mitigations (fResetBroken)");
+            actionLog.info("Boot startup: auto-apply RDP mitigations");
+            Map<String, Object> rdpResult = rdpHealthService.applyMitigationsSilent();
+            if (Boolean.TRUE.equals(rdpResult.get("success"))) {
+                actionLog.info("Boot startup: RDP mitigations OK — " + rdpResult.get("message"));
+            } else {
+                actionLog.warn("Boot startup: RDP mitigations failed — " + rdpResult.get("message"));
+            }
         }
 
         if (boot.isAutoStartNginx()) {

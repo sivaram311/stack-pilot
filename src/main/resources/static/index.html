@@ -86,6 +86,44 @@
                             <button class="btn btn-card btn-secondary" id="btn-nginx-status" type="button">Refresh</button>
                         </div>
                     </div>
+
+                    <div class="card card-infra" id="card-rdp">
+                        <div class="card-header">
+                            <h3>RDP Health</h3>
+                            <span class="status-badge status-stopped" id="status-rdp">Unknown</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-row">
+                                <span class="label">TermService:</span>
+                                <span class="value" id="rdp-termservice">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">fResetBroken:</span>
+                                <span class="value" id="rdp-freset">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Sessions:</span>
+                                <span class="value" id="rdp-sessions">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Crashes (24h):</span>
+                                <span class="value" id="rdp-crashes">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Last crash:</span>
+                                <span class="value path" id="rdp-last-crash" title="">-</span>
+                            </div>
+                            <div class="info-row error-row" id="err-row-rdp" style="display: none;">
+                                <span class="label">Warnings:</span>
+                                <span class="value error-msg" id="err-rdp"></span>
+                            </div>
+                        </div>
+                        <div class="card-actions card-actions-4">
+                            <button class="btn btn-card btn-warning" id="btn-rdp-recover" type="button">Recover</button>
+                            <button class="btn btn-card btn-success" id="btn-rdp-mitigate" type="button">Apply Fix</button>
+                            <button class="btn btn-card btn-secondary" id="btn-rdp-refresh" type="button">Refresh</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -134,7 +172,7 @@
     <div id="host-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="host-modal-title">
         <div class="modal-backdrop" id="host-modal-backdrop"></div>
         <div class="modal-panel">
-            <h3 id="host-modal-title">Host action</h3>
+            <h3 id="host-modal-title">Confirm action</h3>
             <p id="host-modal-desc" class="modal-desc"></p>
             <label class="modal-label" for="host-modal-phrase">Confirmation phrase</label>
             <input id="host-modal-phrase" class="modal-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type phrase exactly">
