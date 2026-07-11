@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: stack-pilot
+  profiles:
+    default: dev
   main:
     banner-mode: "off"
 
@@ -53,45 +55,11 @@ stackpilot:
       url: ""
       format: discord
       cooldown-minutes: 30
-      dashboard-url: "http://control.delena.buzz/"
+      dashboard-url: "https://control.delena.buzz/"
   boot:
     auto-start-services: true
     auto-start-nginx: true
     auto-apply-rdp-mitigations: true
     startup-delay-ms: 45000
-  services:
-    python-downloader:
-      working-dir: "E:/Source/grok_dev/python"
-      command: "python run_data_downloader.py"
-      direct-launch: true
-      environment:
-        PYTHONIOENCODING: "utf-8"
-        PYTHONUTF8: "1"
-      log-file: python.log
-      process-name: "python.exe"
-      process-match: "run_data_downloader.py"
-    python-order-rsi:
-      working-dir: "E:/Source/grok_dev/python"
-      command: "python run_order_rsi.py"
-      direct-launch: true
-      environment:
-        PYTHONIOENCODING: "utf-8"
-        PYTHONUTF8: "1"
-        ORDER_RSI_MODE: "tick"
-        ORDER_RSI_TICK_MS: "250"
-        ORDER_RSI_POLL_MS: "1000"
-        ORDER_RSI_HISTORY_BARS: "5000"
-        BROKER_SERVER_ZONE: "Etc/GMT-3"
-      log-file: order-rsi.log
-      process-name: "python.exe"
-      process-match: "run_order_rsi.py"
-    backend:
-      working-dir: "E:/Source/grok_dev/backend"
-      command: "mvn spring-boot:run"
-      log-file: backend.log
-      port: 8081
-    frontend:
-      working-dir: "E:/Source/grok_dev/frontend"
-      command: "npm run start"
-      log-file: frontend.log
-      port: 4200
+  # services: defined per-profile in application-dev.yml / application-prod.yml
+  # (must not list services here — Spring map-merges profile into base)

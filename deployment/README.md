@@ -8,7 +8,7 @@ Version-controlled reverse-proxy configs and Windows scripts. Source of truth fo
 deployment/
 ├── conf/
 │   ├── delena.buzz.conf          # :4200 + /api → :8081
-│   └── control.delena.buzz.conf  # → Stack Pilot :8091
+│   └── control.delena.buzz.conf  # → Stack Pilot PROD :5091
 └── scripts/
     ├── sync-nginx-config.ps1     # copy conf → nginx install + update includes
     ├── start-nginx.ps1
@@ -31,7 +31,7 @@ E:\Source\stack-pilot\deployment\scripts\sync-nginx-config.ps1 -Reload
 
 ### Control panel access (`control.delena.buzz`)
 
-**Current (public):** NGINX basic auth and Stack Pilot API key are **disabled** while `stackpilot.auth.enabled: false` in `application.yml`. `control.delena.buzz` and `:8091` work without credentials.
+**Current (public):** NGINX basic auth and Stack Pilot API key are **disabled** while `stackpilot.auth.enabled: false` in `application.yml`. `control.delena.buzz` (and direct `:5091`) work without credentials. Legacy DEV bind was `:8091`.
 
 To re-enable protection:
 

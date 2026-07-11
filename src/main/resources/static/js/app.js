@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let services = [];
     let renderedServiceKey = '';
     let pendingHostAction = null;
+    let activePanel = 'services';
+    let logsDrawerOpen = false;
     let hostConfig = {
         confirmPhraseRestart: 'RESTART SERVER',
         confirmPhraseShutdown: 'SHUTDOWN SERVER',
@@ -24,13 +26,25 @@ document.addEventListener('DOMContentLoaded', () => {
         'python-order-rsi': 'Order RSI',
         'backend': 'Backend',
         'frontend': 'Frontend',
+        'agent-portal': 'Agent Portal',
+        'css': 'CSS (Auth)',
+        'h-drive-server': 'H-Drive',
         'nginx-error': 'NGINX Error',
         'nginx-access': 'NGINX Access',
         'stackpilot-actions': 'Actions'
     };
 
+    const COLOR_OK = '#3dd68c';
+    const COLOR_ERR = '#ff6b6b';
+
     const servicesGrid = document.getElementById('services-grid');
     const logsTabs = document.getElementById('logs-tabs');
+    const logsSurface = document.getElementById('logs-surface');
+    const logsDrawer = document.getElementById('logs-drawer');
+    const logsDrawerMount = document.getElementById('logs-drawer-mount');
+    const logsDrawerBackdrop = document.getElementById('logs-drawer-backdrop');
+    const logsDrawerCloseBtn = document.getElementById('btn-logs-drawer-close');
+    const panelLogs = document.getElementById('panel-logs');
     const terminalBody = document.getElementById('terminal-body');
     const autoScrollCheck = document.getElementById('chk-autoscroll');
     const clearLogsBtn = document.getElementById('btn-clear-logs');
@@ -47,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const rdpRecoverBtn = document.getElementById('btn-rdp-recover');
     const rdpMitigateBtn = document.getElementById('btn-rdp-mitigate');
     const rdpRefreshBtn = document.getElementById('btn-rdp-refresh');
+    const runningCountEl = document.getElementById('running-count');
+    const overflowBtn = document.getElementById('btn-overflow');
+    const overflowPanel = document.getElementById('overflow-panel');
 
     const hostModal = document.getElementById('host-modal');
     const hostModalTitle = document.getElementById('host-modal-title');
@@ -79,12 +96,48 @@ document.addEventListener('DOMContentLoaded', () => {
             authGateError.textContent = message;
             authGateError.classList.remove('hidden');
         }
+        requestAnimationFrame(() => {
+            try {
+                authApiKeyInput.focus({ preventScroll: false });
+                authApiKeyInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            } catch (_) { /* ignore */ }
+        });
     }
 
     function hideAuthGate() {
         authGate.classList.add('hidden');
         authGateError.classList.add('hidden');
         authUnlocked = true;
+        document.body.classList.remove('keyboard-open');
+    }
+
+    function setupKeyboardGuards() {
+        const onFocusIn = (e) => {
+            if (!(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) return;
+            document.body.classList.add('keyboard-open');
+            setTimeout(() => {
+                try {
+                    e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                } catch (_) { /* ignore */ }
+            }, 280);
+        };
+        const onFocusOut = () => {
+            setTimeout(() => {
+                const active = document.activeElement;
+                if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) {
+                    document.body.classList.remove('keyboard-open');
+                }
+            }, 100);
+        };
+        document.addEventListener('focusin', onFocusIn);
+        document.addEventListener('focusout', onFocusOut);
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                const vv = window.visualViewport;
+                const obscured = (window.innerHeight - vv.height) > 120;
+                document.body.classList.toggle('keyboard-open', obscured);
+            });
+        }
     }
 
     async function apiFetch(url, options = {}) {
@@ -149,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function init() {
         setupEventListeners();
+        setupKeyboardGuards();
         checkAuth().then(() => {
             if (!authRequired || authUnlocked) {
                 startDashboardPolling();
@@ -174,11 +228,122 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1500);
     }
 
+    function isDesktop() {
+        return window.matchMedia('(min-width: 768px)').matches;
+    }
+
+    function switchPanel(panel) {
+        if (!panel) return;
+        activePanel = panel;
+
+        document.querySelectorAll('.panel').forEach(el => {
+            const match = el.dataset.panel === panel;
+            el.classList.toggle('active', match);
+            if (match) el.removeAttribute('hidden');
+            else el.setAttribute('hidden', '');
+        });
+
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            const match = btn.dataset.panel === panel;
+            btn.classList.toggle('active', match);
+            if (match) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
+        });
+
+        if (panel === 'logs') {
+            closeLogsDrawer(true);
+            restoreLogsSurfaceToPanel();
+        }
+    }
+
+    function closeOverflow() {
+        overflowPanel.classList.add('hidden');
+        overflowBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleOverflow() {
+        const open = overflowPanel.classList.contains('hidden');
+        if (open) {
+            overflowPanel.classList.remove('hidden');
+            overflowBtn.setAttribute('aria-expanded', 'true');
+        } else {
+            closeOverflow();
+        }
+    }
+
+    function restoreLogsSurfaceToPanel() {
+        if (!logsSurface || !panelLogs) return;
+        if (logsSurface.parentElement !== panelLogs) {
+            panelLogs.appendChild(logsSurface);
+        }
+    }
+
+    function openLogsDrawer(tab) {
+        if (isDesktop()) {
+            switchPanel('logs');
+            if (tab) switchLogTab(tab);
+            return;
+        }
+
+        if (tab) switchLogTab(tab);
+        if (logsDrawerMount && logsSurface && logsSurface.parentElement !== logsDrawerMount) {
+            logsDrawerMount.appendChild(logsSurface);
+        }
+        logsDrawer.classList.remove('hidden', 'closing');
+        logsDrawerOpen = true;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLogsDrawer(immediate) {
+        if (!logsDrawerOpen && logsDrawer.classList.contains('hidden')) {
+            restoreLogsSurfaceToPanel();
+            return;
+        }
+
+        let finished = false;
+        const finish = () => {
+            if (finished) return;
+            finished = true;
+            logsDrawer.classList.add('hidden');
+            logsDrawer.classList.remove('closing');
+            logsDrawerOpen = false;
+            document.body.style.overflow = '';
+            restoreLogsSurfaceToPanel();
+        };
+
+        if (immediate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            finish();
+            return;
+        }
+
+        logsDrawer.classList.add('closing');
+        const sheet = logsDrawer.querySelector('.logs-drawer-sheet');
+        const onEnd = (e) => {
+            if (e && e.target !== sheet) return;
+            sheet.removeEventListener('transitionend', onEnd);
+            finish();
+        };
+        sheet.addEventListener('transitionend', onEnd);
+        setTimeout(finish, 300);
+    }
+
     function setupEventListeners() {
         servicesGrid.addEventListener('click', (e) => {
+            const logsBtn = e.target.closest('.btn-open-logs');
+            if (logsBtn) {
+                const tab = logsBtn.getAttribute('data-log-tab');
+                openLogsDrawer(tab);
+                return;
+            }
             const btn = e.target.closest('button[data-service][data-action]');
             if (!btn || btn.disabled) return;
             callServiceAction(btn.dataset.service, btn.dataset.action);
+        });
+
+        document.querySelector('.infra-rows')?.addEventListener('click', (e) => {
+            const logsBtn = e.target.closest('.btn-open-logs');
+            if (!logsBtn) return;
+            openLogsDrawer(logsBtn.getAttribute('data-log-tab'));
         });
 
         logsTabs.addEventListener('click', (e) => {
@@ -187,13 +352,34 @@ document.addEventListener('DOMContentLoaded', () => {
             switchLogTab(btn.getAttribute('data-tab'));
         });
 
-        startAllBtn.addEventListener('click', () => callBulkAction('start-all', 'Starting all services'));
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
+        });
+
+        overflowBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleOverflow();
+        });
+        document.addEventListener('click', (e) => {
+            if (!overflowPanel.classList.contains('hidden') && !e.target.closest('#overflow-menu')) {
+                closeOverflow();
+            }
+        });
+
+        startAllBtn.addEventListener('click', () => {
+            closeOverflow();
+            callBulkAction('start-all', 'Starting all services');
+        });
         restartAllBtn.addEventListener('click', () => {
+            closeOverflow();
             if (confirm('Kill all external/managed grok-dev processes and relaunch under StackPilot?')) {
                 callBulkAction('restart-all', 'Restarting all services (take control)');
             }
         });
-        stopAllBtn.addEventListener('click', () => callBulkAction('stop-all', 'Stopping all services'));
+        stopAllBtn.addEventListener('click', () => {
+            closeOverflow();
+            callBulkAction('stop-all', 'Stopping all services');
+        });
 
         nginxStartBtn.addEventListener('click', () => callNginxAction('start', 'Starting nginx'));
         nginxStopBtn.addEventListener('click', () => {
@@ -230,6 +416,28 @@ document.addEventListener('DOMContentLoaded', () => {
             terminalBody.innerHTML = '<div class="log-line system-msg">Log terminal view cleared.</div>';
             lastLogHash = '';
         });
+
+        logsDrawerBackdrop.addEventListener('click', () => closeLogsDrawer());
+        logsDrawerCloseBtn.addEventListener('click', () => closeLogsDrawer());
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (!hostModal.classList.contains('hidden')) {
+                closeHostModal();
+                return;
+            }
+            if (logsDrawerOpen) {
+                closeLogsDrawer();
+                return;
+            }
+            closeOverflow();
+        });
+
+        window.addEventListener('resize', () => {
+            if (isDesktop() && logsDrawerOpen) {
+                closeLogsDrawer(true);
+            }
+        });
     }
 
     function formatDisplayName(name) {
@@ -237,7 +445,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'python-downloader': 'Python Downloader',
             'python-order-rsi': 'Python Order RSI',
             'backend': 'Backend Service',
-            'frontend': 'Frontend UI'
+            'frontend': 'Frontend UI',
+            'agent-portal': 'Agent Portal',
+            'css': 'CSS (Auth)',
+            'h-drive-server': 'H-Drive'
         };
         if (labels[name]) return labels[name];
         return name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -257,55 +468,55 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/"/g, '&quot;');
     }
 
-    function buildServiceCardHtml(service) {
+    function buildServiceRowHtml(service) {
         const name = service.name;
         const display = formatDisplayName(name);
         const dir = shortPath(service.workingDir);
         const port = service.port != null ? service.port : 'N/A';
+        const safe = escapeHtml(name);
         return `
-            <div class="card" id="card-${escapeHtml(name)}" data-service="${escapeHtml(name)}">
-                <div class="card-header">
-                    <h3>${escapeHtml(display)}</h3>
-                    <span class="status-badge status-stopped" id="status-${escapeHtml(name)}">Stopped</span>
-                </div>
-                <div class="card-body">
-                    <div class="info-row">
-                        <span class="label">Dir:</span>
-                        <span class="value path" title="${escapeHtml(service.workingDir || '')}">${escapeHtml(dir)}</span>
+            <article class="service-row" id="card-${safe}" data-service="${safe}" role="listitem">
+                <div class="row-main">
+                    <div class="row-identity">
+                        <span class="row-name">${escapeHtml(display)}</span>
+                        <span class="status-badge status-stopped" id="status-${safe}">Stopped</span>
                     </div>
-                    <div class="info-row">
-                        <span class="label">Cmd:</span>
-                        <span class="value path" title="${escapeHtml(service.command || '')}">${escapeHtml((service.command || '-').slice(0, 40))}${(service.command || '').length > 40 ? '...' : ''}</span>
+                    <div class="row-meta">
+                        <span class="meta-item"><span class="meta-label">Dir</span> <span class="meta-value path" title="${escapeHtml(service.workingDir || '')}">${escapeHtml(dir)}</span></span>
+                        <span class="meta-item"><span class="meta-label">Cmd</span> <span class="meta-value path" title="${escapeHtml(service.command || '')}">${escapeHtml((service.command || '-').slice(0, 40))}${(service.command || '').length > 40 ? '...' : ''}</span></span>
+                        <span class="meta-item"><span class="meta-label">Port</span> <span class="meta-value" id="port-${safe}">${escapeHtml(String(port))}</span></span>
+                        <span class="meta-item"><span class="meta-label">PID</span> <span class="meta-value pid" id="pid-${safe}">-</span></span>
                     </div>
-                    <div class="info-row">
-                        <span class="label">Port:</span>
-                        <span class="value" id="port-${escapeHtml(name)}">${escapeHtml(port)}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="label">PID:</span>
-                        <span class="value pid" id="pid-${escapeHtml(name)}">-</span>
-                    </div>
-                    <div class="info-row error-row" id="err-row-${escapeHtml(name)}" style="display: none;">
-                        <span class="label">Error:</span>
-                        <span class="value error-msg" id="err-${escapeHtml(name)}"></span>
+                    <div class="row-error error-row" id="err-row-${safe}" style="display: none;">
+                        <span class="error-msg" id="err-${safe}"></span>
                     </div>
                 </div>
-                <div class="card-actions">
-                    <button class="btn btn-card btn-success start-btn" data-service="${escapeHtml(name)}" data-action="start" type="button">Start</button>
-                    <button class="btn btn-card btn-warning restart-btn" data-service="${escapeHtml(name)}" data-action="restart" type="button">Restart</button>
-                    <button class="btn btn-card btn-danger stop-btn" data-service="${escapeHtml(name)}" data-action="stop" type="button">Stop</button>
+                <div class="row-actions">
+                    <button class="btn btn-sm btn-success start-btn" data-service="${safe}" data-action="start" type="button">Start</button>
+                    <button class="btn btn-sm btn-warning restart-btn" data-service="${safe}" data-action="restart" type="button">Restart</button>
+                    <button class="btn btn-sm btn-danger stop-btn" data-service="${safe}" data-action="stop" type="button">Stop</button>
+                    <button class="btn btn-sm btn-ghost btn-open-logs" type="button" data-log-tab="${safe}">Logs</button>
                 </div>
-            </div>`;
+            </article>`;
     }
 
     function renderServiceCards(servicesData) {
         const key = servicesData.map(s => s.name).join('|');
         if (key !== renderedServiceKey) {
             renderedServiceKey = key;
-            servicesGrid.innerHTML = servicesData.map(buildServiceCardHtml).join('');
+            servicesGrid.innerHTML = servicesData.map(buildServiceRowHtml).join('');
             renderLogTabs(servicesData.map(s => s.name));
         }
         servicesData.forEach(updateServiceCard);
+        updateRunningCount(servicesData);
+    }
+
+    function updateRunningCount(servicesData) {
+        if (!runningCountEl) return;
+        const n = servicesData.filter(s =>
+            s.status === 'RUNNING' || s.status === 'RUNNING_EXTERNAL' || s.status === 'STARTING'
+        ).length;
+        runningCountEl.textContent = String(n);
     }
 
     function renderLogTabs(serviceNames) {
@@ -325,13 +536,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function switchLogTab(tab) {
-        if (!tab || tab === activeTab) return;
+        if (!tab) return;
+        if (tab === activeTab) {
+            logsTabs.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+            });
+            return;
+        }
         activeTab = tab;
         logsTabs.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
         });
         lastLogHash = '';
-        terminalBody.innerHTML = `<div class="log-line system-msg">Switched tab to ${tab}. Loading logs...</div>`;
+        terminalBody.innerHTML = `<div class="log-line system-msg">Switched tab to ${escapeHtml(tab)}. Loading logs...</div>`;
         fetchLogs();
     }
 
@@ -345,7 +562,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error fetching service status:', error);
             if (!renderedServiceKey) {
-                servicesGrid.innerHTML = '<div class="card card-loading"><p class="error-msg">Failed to load services.</p></div>';
+            if (!renderedServiceKey) {
+                servicesGrid.innerHTML = '<div class="row-loading" aria-live="assertive"><p class="error-msg">Failed to load services. Pull to refresh or check network.</p></div>';
             }
         }
     }
@@ -571,7 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fresetSpan) {
             const v = status.fResetBroken;
             fresetSpan.textContent = v === 1 ? 'Enabled' : (v === 0 ? 'Disabled' : String(v ?? '-'));
-            fresetSpan.style.color = v === 1 ? '#34d399' : '#f87171';
+            fresetSpan.style.color = v === 1 ? COLOR_OK : COLOR_ERR;
         }
 
         const sessions = Array.isArray(status.sessions) ? status.sessions : [];
@@ -651,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const configOk = status.configTest && status.configTest.success;
         if (configSpan) {
             configSpan.textContent = configOk ? 'OK' : 'Failed';
-            configSpan.style.color = configOk ? '#34d399' : '#f87171';
+            configSpan.style.color = configOk ? COLOR_OK : COLOR_ERR;
         }
 
         if (healthGrid) {
@@ -811,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lastLogHash = currentHash;
 
             if (logLines.length === 0) {
-                terminalBody.innerHTML = `<div class="log-line system-msg">No logs available for ${activeTab}. Service might be stopped.</div>`;
+                terminalBody.innerHTML = `<div class="log-line system-msg">No logs available for ${escapeHtml(activeTab)}. Service might be stopped.</div>`;
             } else {
                 terminalBody.innerHTML = logLines.map(line => {
                     let className = 'log-line';

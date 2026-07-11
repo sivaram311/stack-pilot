@@ -1,6 +1,8 @@
 # Implementation Plan: StackPilot
 
-`stack-pilot` is a Spring Boot application designed to manage the lifecycle (start, stop, restart) of the services in `grok-dev` invisibly in the background, aggregate their logs, and expose a REST API and control dashboard.
+`stack-pilot` is a Spring Boot application designed to manage the lifecycle (start, stop, restart) of background services, aggregate their logs, and expose a REST API and control dashboard.
+
+**Current ship (2026-07-11):** release **0.1.2** on https://control.delena.buzz (`G:\apps\stack-pilot` `:5091`, Spring profile `prod` → css / agent-portal / h-drive-server). UI is OLED-dark Task Manager shell (Realme P2 Pro polish). See root `README.md` for profiles, promote, and Cloudflare 4h static cache.
 
 ---
 

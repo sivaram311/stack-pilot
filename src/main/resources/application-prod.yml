@@ -1,0 +1,64 @@
+# Production control plane (G:\apps). Activate with --spring.profiles.active=prod
+# (release start.ps1 for EnvName=prod). Secrets stay in each app's .env — not here.
+stackpilot:
+  nginx:
+    health-checks:
+      - name: localhost
+        url: "http://localhost/"
+      - name: control.delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: control.delena.buzz
+      - name: agent-portal.delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: agent-portal.delena.buzz
+      - name: css.delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: css.delena.buzz
+      - name: hdrive.delena.buzz
+        url: "http://127.0.0.1/"
+        host-header: hdrive.delena.buzz
+  boot:
+    # Reboot recovery: start stopped managed apps. Already-running (port/external) is a no-op.
+    auto-start-services: true
+  services:
+    css:
+      working-dir: "G:/apps/css"
+      # Foreground wrapper loads G:\apps\css\.env (incl. DB secrets) and keeps java attached.
+      command: >-
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+        E:\Source\stack-pilot\scripts\run-app-foreground.ps1
+        -AppHome G:\apps\css
+        -Jar centralized-security-system.jar
+        -ExtraArg --spring.profiles.active=prod
+        -MapCssEnv
+      direct-launch: false
+      log-file: css.log
+      port: 5900
+      process-name: "java.exe"
+      process-match: "centralized-security-system.jar"
+    agent-portal:
+      working-dir: "G:/apps/agent-portal"
+      command: >-
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+        E:\Source\stack-pilot\scripts\run-app-foreground.ps1
+        -AppHome G:\apps\agent-portal
+        -Jar agent-portal.jar
+        -ExtraArg --spring.profiles.active=prod
+        -ExtraArg --server.port=5080
+      direct-launch: false
+      log-file: agent-portal.log
+      port: 5080
+      process-name: "java.exe"
+      process-match: "agent-portal.jar"
+    h-drive-server:
+      working-dir: "G:/apps/h-drive-server"
+      command: "node server.js"
+      direct-launch: true
+      environment:
+        PORT: "5010"
+        HOST: "0.0.0.0"
+        HDRIVE_ROOT: "H:\\"
+      log-file: h-drive-server.log
+      port: 5010
+      process-name: "node.exe"
+      process-match: "server.js"

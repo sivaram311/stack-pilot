@@ -36,7 +36,7 @@ public class StackPilotProperties {
 
     @Data
     public static class BootSettings {
-        /** After Stack Pilot starts, optionally start all grok_dev services. */
+        /** After Stack Pilot starts, optionally start all profile-managed services. */
         private boolean autoStartServices = true;
         /** Fallback: start nginx from Stack Pilot if the boot task did not (already-running is a no-op). */
         private boolean autoStartNginx = true;
@@ -70,7 +70,7 @@ public class StackPilotProperties {
             /** discord | generic */
             private String format = "discord";
             private int cooldownMinutes = 30;
-            private String dashboardUrl = "http://control.delena.buzz/";
+            private String dashboardUrl = "https://control.delena.buzz/";
         }
     }
 

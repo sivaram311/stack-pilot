@@ -31,20 +31,36 @@ if ($statusJson.fResetBroken -ne 1) {
     Write-Log "WARN fResetBroken not set; mitigation script should have fixed this"
 }
 
+$LastRecoveredFile = Join-Path $StackPilotHome "logs\rdp-last-recovered-crash.txt"
 $recentCrash = $false
+$crashTimeStr = ""
+
 if ($statusJson.lastRdpcoretsCrash -and $statusJson.lastRdpcoretsCrash.timeCreated) {
-    $crashTime = [DateTime]::Parse($statusJson.lastRdpcoretsCrash.timeCreated)
-    if ($crashTime -gt (Get-Date).AddMinutes(-$CrashRestartWindowMinutes)) {
-        $recentCrash = $true
+    $crashTimeStr = $statusJson.lastRdpcoretsCrash.timeCreated
+    
+    $lastRecoveredTime = ""
+    if (Test-Path $LastRecoveredFile) {
+        $lastRecoveredTime = (Get-Content -Path $LastRecoveredFile -ErrorAction SilentlyContinue).Trim()
+    }
+    
+    if ($crashTimeStr -ne $lastRecoveredTime) {
+        $crashTime = [DateTime]::Parse($crashTimeStr)
+        # Check if the crash occurred within a reasonable maximum window (e.g. 24 hours) to avoid triggering on old historical crashes on setup
+        if ($crashTime -gt (Get-Date).AddHours(-24)) {
+            $recentCrash = $true
+        }
     }
 }
 
 if ($termStatus -ne "Running" -or $recentCrash) {
-    $reason = if ($termStatus -ne "Running") { "TermService=$termStatus" } else { "recent rdpcorets crash" }
+    $reason = if ($termStatus -ne "Running") { "TermService=$termStatus" } else { "rdpcorets crash at $crashTimeStr" }
     Write-Log "ACTION recover triggered ($reason)"
     $recover = & $recoverScript | ConvertFrom-Json
     if ($recover.success) {
         Write-Log "OK $($recover.message)"
+        if ($recentCrash -and $crashTimeStr) {
+            $crashTimeStr | Out-File -FilePath $LastRecoveredFile -Encoding UTF8 -Force
+        }
     } else {
         Write-Log "FAIL $($recover.message)"
         exit 1

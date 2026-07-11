@@ -3,180 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#090d16">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="color-scheme" content="dark">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>StackPilot - Service Orchestrator</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Stack Pilot</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
-    <div class="glass-bg"></div>
-    <div class="app-container">
-        <header>
-            <div class="logo-area">
-                <span class="logo-icon">⚡</span>
-                <div class="logo-text">
-                    <h1>StackPilot</h1>
-                    <p>Service Orchestration Control Center</p>
-                </div>
+<body class="sp-oled">
+    <div class="app-shell">
+        <header class="app-bar" role="banner">
+            <div class="app-bar-brand">
+                <h1 class="app-bar-title">Stack Pilot</h1>
+                <span class="running-chip" id="running-chip" title="Running services">
+                    <span class="running-chip-dot" aria-hidden="true"></span>
+                    <span id="running-count">0</span> running
+                </span>
             </div>
-            <div class="global-actions">
-                <button id="btn-start-all" class="btn btn-primary btn-glow" type="button">Start All</button>
-                <button id="btn-restart-all" class="btn btn-warning btn-glow" type="button">
-                    <span class="btn-label-full">Restart All (Take Control)</span>
-                    <span class="btn-label-short">Restart All</span>
-                </button>
-                <button id="btn-stop-all" class="btn btn-danger" type="button">Stop All</button>
+            <div class="app-bar-actions">
+                <div class="overflow-menu" id="overflow-menu">
+                    <button type="button" class="btn btn-icon" id="btn-overflow" aria-label="More actions" aria-haspopup="true" aria-expanded="false" aria-controls="overflow-panel">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/>
+                        </svg>
+                    </button>
+                    <div class="overflow-panel hidden" id="overflow-panel" role="menu">
+                        <button type="button" class="overflow-item" id="btn-start-all" role="menuitem">Start All</button>
+                        <button type="button" class="overflow-item" id="btn-restart-all" role="menuitem">Restart All</button>
+                        <button type="button" class="overflow-item overflow-item-danger" id="btn-stop-all" role="menuitem">Stop All</button>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <main>
-            <section class="section-block">
-                <div class="section-heading">
-                    <h2>Application Services</h2>
-                    <p>Managed from <code>application.yml</code> — cards built dynamically from <code>/api/services</code></p>
+        <nav class="side-nav" id="side-nav" aria-label="Primary">
+            <button type="button" class="nav-item active" data-panel="services" aria-current="page">
+                <span class="nav-item-label">Services</span>
+            </button>
+            <button type="button" class="nav-item" data-panel="logs">
+                <span class="nav-item-label">Logs</span>
+            </button>
+            <button type="button" class="nav-item" data-panel="host">
+                <span class="nav-item-label">Host</span>
+            </button>
+        </nav>
+
+        <main class="app-main">
+            <section class="panel panel-services active" id="panel-services" data-panel="services" aria-label="Services">
+                <div class="panel-toolbar">
+                    <h2 class="panel-title">Processes</h2>
+                    <p class="panel-subtitle">Managed services and infrastructure</p>
                 </div>
-                <div id="services-grid" class="services-grid">
-                    <div class="card card-loading">
-                        <p>Loading services...</p>
+
+                <div class="process-list" role="list">
+                    <div class="list-group-label">Applications</div>
+                    <div id="services-grid" class="service-rows" role="presentation">
+                        <div class="row-loading" aria-busy="true" aria-live="polite">
+                            <div class="skeleton-stack">
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                                <div class="skeleton-row"></div>
+                            </div>
+                            <p class="row-loading-text">Loading services…</p>
+                        </div>
+                    </div>
+
+                    <div class="list-group-label">Infrastructure</div>
+                    <div class="infra-rows" role="presentation">
+                        <article class="service-row infra-row" id="card-nginx" data-service="nginx" role="listitem">
+                            <div class="row-main">
+                                <div class="row-identity">
+                                    <span class="row-name">NGINX</span>
+                                    <span class="status-badge status-stopped" id="status-nginx">Stopped</span>
+                                </div>
+                                <div class="row-meta">
+                                    <span class="meta-item"><span class="meta-label">Home</span> <span class="meta-value path" id="nginx-home" title="C:\nginx-1.30.3">C:\nginx-1.30.3</span></span>
+                                    <span class="meta-item"><span class="meta-label">Port</span> <span class="meta-value" id="nginx-port">80</span></span>
+                                    <span class="meta-item"><span class="meta-label">PIDs</span> <span class="meta-value pid" id="nginx-pids">-</span></span>
+                                    <span class="meta-item"><span class="meta-label">Config</span> <span class="meta-value" id="nginx-config">-</span></span>
+                                </div>
+                                <div class="row-error error-row" id="err-row-nginx" style="display: none;">
+                                    <span class="error-msg" id="err-nginx"></span>
+                                </div>
+                                <div class="health-grid" id="nginx-health-grid"></div>
+                            </div>
+                            <div class="row-actions">
+                                <button class="btn btn-sm btn-success" id="btn-nginx-start" type="button">Start</button>
+                                <button class="btn btn-sm btn-danger" id="btn-nginx-stop" type="button">Stop</button>
+                                <button class="btn btn-sm btn-warning" id="btn-nginx-reload" type="button">Reload</button>
+                                <button class="btn btn-sm btn-secondary" id="btn-nginx-status" type="button">Refresh</button>
+                                <button class="btn btn-sm btn-ghost btn-open-logs" type="button" data-log-tab="nginx-error">Logs</button>
+                            </div>
+                        </article>
+
+                        <article class="service-row infra-row" id="card-rdp" data-service="rdp" role="listitem">
+                            <div class="row-main">
+                                <div class="row-identity">
+                                    <span class="row-name">RDP Health</span>
+                                    <span class="status-badge status-stopped" id="status-rdp">Unknown</span>
+                                </div>
+                                <div class="row-meta">
+                                    <span class="meta-item"><span class="meta-label">TermService</span> <span class="meta-value" id="rdp-termservice">-</span></span>
+                                    <span class="meta-item"><span class="meta-label">fResetBroken</span> <span class="meta-value" id="rdp-freset">-</span></span>
+                                    <span class="meta-item"><span class="meta-label">Sessions</span> <span class="meta-value" id="rdp-sessions">-</span></span>
+                                    <span class="meta-item"><span class="meta-label">Crashes 24h</span> <span class="meta-value" id="rdp-crashes">-</span></span>
+                                    <span class="meta-item"><span class="meta-label">Last crash</span> <span class="meta-value path" id="rdp-last-crash" title="">-</span></span>
+                                </div>
+                                <div class="row-error error-row" id="err-row-rdp" style="display: none;">
+                                    <span class="error-msg" id="err-rdp"></span>
+                                </div>
+                            </div>
+                            <div class="row-actions">
+                                <button class="btn btn-sm btn-warning" id="btn-rdp-recover" type="button">Recover</button>
+                                <button class="btn btn-sm btn-success" id="btn-rdp-mitigate" type="button">Apply Fix</button>
+                                <button class="btn btn-sm btn-secondary" id="btn-rdp-refresh" type="button">Refresh</button>
+                            </div>
+                        </article>
                     </div>
                 </div>
             </section>
 
-            <section class="section-block">
-                <div class="section-heading">
-                    <h2>Infrastructure</h2>
-                    <p>Reverse proxy from <code>deployment/</code> — sync with <code>deployment/scripts/sync-nginx-config.ps1</code></p>
+            <section class="panel panel-logs" id="panel-logs" data-panel="logs" aria-label="Logs" hidden>
+                <div class="panel-toolbar panel-toolbar-logs">
+                    <h2 class="panel-title">Logs</h2>
                 </div>
-                <div class="services-grid infrastructure-grid">
-                    <div class="card card-infra" id="card-nginx">
-                        <div class="card-header">
-                            <h3>NGINX</h3>
-                            <span class="status-badge status-stopped" id="status-nginx">Stopped</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="info-row">
-                                <span class="label">Home:</span>
-                                <span class="value path" id="nginx-home" title="C:\nginx-1.30.3">C:\nginx-1.30.3</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">Port:</span>
-                                <span class="value" id="nginx-port">80</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">PIDs:</span>
-                                <span class="value pid" id="nginx-pids">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">Config:</span>
-                                <span class="value" id="nginx-config">-</span>
-                            </div>
-                            <div class="info-row error-row" id="err-row-nginx" style="display: none;">
-                                <span class="label">Detail:</span>
-                                <span class="value error-msg" id="err-nginx"></span>
-                            </div>
-                            <div class="health-grid" id="nginx-health-grid"></div>
-                        </div>
-                        <div class="card-actions card-actions-4">
-                            <button class="btn btn-card btn-success" id="btn-nginx-start" type="button">Start</button>
-                            <button class="btn btn-card btn-danger" id="btn-nginx-stop" type="button">Stop</button>
-                            <button class="btn btn-card btn-warning" id="btn-nginx-reload" type="button">Reload</button>
-                            <button class="btn btn-card btn-secondary" id="btn-nginx-status" type="button">Refresh</button>
+                <div id="logs-surface" class="logs-surface">
+                    <div class="logs-surface-header">
+                        <div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="Log sources"></div>
+                        <div class="logs-controls">
+                            <label class="auto-scroll-container">
+                                <input type="checkbox" id="chk-autoscroll" checked>
+                                <span>Auto scroll</span>
+                            </label>
+                            <button id="btn-clear-logs" class="btn btn-sm btn-secondary" type="button">Clear</button>
                         </div>
                     </div>
-
-                    <div class="card card-infra" id="card-rdp">
-                        <div class="card-header">
-                            <h3>RDP Health</h3>
-                            <span class="status-badge status-stopped" id="status-rdp">Unknown</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="info-row">
-                                <span class="label">TermService:</span>
-                                <span class="value" id="rdp-termservice">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">fResetBroken:</span>
-                                <span class="value" id="rdp-freset">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">Sessions:</span>
-                                <span class="value" id="rdp-sessions">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">Crashes (24h):</span>
-                                <span class="value" id="rdp-crashes">-</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="label">Last crash:</span>
-                                <span class="value path" id="rdp-last-crash" title="">-</span>
-                            </div>
-                            <div class="info-row error-row" id="err-row-rdp" style="display: none;">
-                                <span class="label">Warnings:</span>
-                                <span class="value error-msg" id="err-rdp"></span>
-                            </div>
-                        </div>
-                        <div class="card-actions card-actions-4">
-                            <button class="btn btn-card btn-warning" id="btn-rdp-recover" type="button">Recover</button>
-                            <button class="btn btn-card btn-success" id="btn-rdp-mitigate" type="button">Apply Fix</button>
-                            <button class="btn btn-card btn-secondary" id="btn-rdp-refresh" type="button">Refresh</button>
+                    <div class="terminal-container">
+                        <div class="terminal" id="terminal-body">
+                            <div class="log-line system-msg">Loading log tabs...</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="section-block section-danger">
-                <div class="section-heading">
-                    <h2>Host Controls</h2>
-                    <p>Restart or shut down the entire Windows server. Actions use a <strong id="host-delay-label">60</strong>s delay — cancel before it expires.</p>
+            <section class="panel panel-host" id="panel-host" data-panel="host" aria-label="Host" hidden>
+                <div class="panel-toolbar">
+                    <h2 class="panel-title">Host</h2>
+                    <p class="panel-subtitle">Restart or shut down the Windows server. Actions use a <strong id="host-delay-label">60</strong>s delay — cancel before it expires.</p>
                 </div>
                 <div class="host-panel">
                     <div class="host-status" id="host-pending-banner" style="display: none;">
                         <span id="host-pending-text"></span>
-                        <button class="btn btn-warning" id="btn-host-cancel" type="button">Cancel</button>
+                        <button class="btn btn-sm btn-warning" id="btn-host-cancel" type="button">Cancel</button>
                     </div>
                     <div class="host-actions">
-                        <button class="btn btn-warning btn-glow" id="btn-host-restart" type="button">Restart Server</button>
+                        <button class="btn btn-warning" id="btn-host-restart" type="button">Restart Server</button>
                         <button class="btn btn-danger" id="btn-host-shutdown" type="button">Shutdown Server</button>
                     </div>
-                    <p class="host-hint">Confirmation uses the modal below — type the exact phrase from server config.</p>
-                </div>
-            </section>
-
-            <section class="logs-section">
-                <div class="logs-header">
-                    <div id="logs-tabs" class="logs-tabs" role="tablist" aria-label="Log sources"></div>
-                    <div class="logs-controls">
-                        <label class="auto-scroll-container">
-                            <input type="checkbox" id="chk-autoscroll" checked>
-                            <span>Auto Scroll</span>
-                        </label>
-                        <button id="btn-clear-logs" class="btn btn-secondary" type="button">Clear View</button>
-                    </div>
-                </div>
-                <div class="terminal-container">
-                    <div class="terminal" id="terminal-body">
-                        <div class="log-line system-msg">Loading log tabs...</div>
-                    </div>
+                    <p class="host-hint">Confirmation uses the modal — type the exact phrase from server config.</p>
                 </div>
             </section>
         </main>
 
-        <footer>
-            <p>StackPilot Dashboard • Running on Java 21 & Spring Boot 3.3.1</p>
-        </footer>
+        <nav class="bottom-nav" id="bottom-nav" aria-label="Primary">
+            <button type="button" class="nav-item active" data-panel="services" aria-current="page">
+                <svg class="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/>
+                </svg>
+                <span class="nav-item-label">Services</span>
+            </button>
+            <button type="button" class="nav-item" data-panel="logs">
+                <svg class="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <path d="M4 5h16M4 12h16M4 19h10"/>
+                </svg>
+                <span class="nav-item-label">Logs</span>
+            </button>
+            <button type="button" class="nav-item" data-panel="host">
+                <svg class="nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                </svg>
+                <span class="nav-item-label">Host</span>
+            </button>
+        </nav>
     </div>
 
-    <div id="auth-gate" class="auth-gate hidden">
+    <div id="logs-drawer" class="logs-drawer hidden" role="dialog" aria-modal="true" aria-labelledby="logs-drawer-title">
+        <div class="logs-drawer-backdrop" id="logs-drawer-backdrop"></div>
+        <div class="logs-drawer-sheet">
+            <div class="logs-drawer-handle" aria-hidden="true"></div>
+            <div class="logs-drawer-header">
+                <h2 id="logs-drawer-title">Logs</h2>
+                <button type="button" class="btn btn-icon" id="btn-logs-drawer-close" aria-label="Close logs">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M4 4l10 10M14 4L4 14"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="logs-drawer-mount" class="logs-drawer-mount"></div>
+        </div>
+    </div>
+
+    <div id="auth-gate" class="auth-gate hidden" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+        <div class="auth-gate-backdrop" id="auth-gate-backdrop" aria-hidden="true"></div>
         <div class="auth-gate-panel">
-            <h2>Stack Pilot</h2>
-            <p>API key required for direct access. Use the key from <code>application.yml</code> or <code>STACKPILOT_AUTH_API_KEY</code>.</p>
+            <div class="auth-gate-handle" aria-hidden="true"></div>
+            <h2 id="auth-gate-title">Unlock dashboard</h2>
+            <p class="auth-gate-desc">API key required for direct access. Prefer <code>control.delena.buzz</code> via nginx, or paste the key from <code>STACKPILOT_AUTH_API_KEY</code>.</p>
             <label class="modal-label" for="auth-api-key">API key</label>
-            <input id="auth-api-key" class="modal-input" type="password" autocomplete="off" spellcheck="false" placeholder="Paste API key">
-            <p id="auth-gate-error" class="modal-error hidden"></p>
-            <button id="auth-gate-submit" class="btn btn-primary btn-glow" type="button">Unlock dashboard</button>
+            <input id="auth-api-key" class="modal-input auth-input" type="password" autocomplete="current-password" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="Paste API key" aria-describedby="auth-gate-help">
+            <p id="auth-gate-help" class="auth-gate-help">Key is kept in session storage on this device only.</p>
+            <p id="auth-gate-error" class="modal-error hidden" role="alert"></p>
+            <button id="auth-gate-submit" class="btn btn-primary btn-touch" type="button">Unlock dashboard</button>
         </div>
     </div>
 

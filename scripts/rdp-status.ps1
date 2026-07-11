@@ -16,15 +16,61 @@ function Get-Sessions {
     $sessions = @()
     $raw = query session 2>&1
     foreach ($line in $raw) {
-        if ($line -match '^\s*(\S+)\s+(\S*)\s+(\d+)\s+(\S+)') {
-            $name = $Matches[1]
-            if ($name -eq "SESSIONNAME") { continue }
-            $sessions += [ordered]@{
-                sessionName = $name
-                username    = $Matches[2]
-                id          = [int]$Matches[3]
-                state       = $Matches[4]
+        $trimmed = $line.TrimStart()
+        if ($trimmed.Length -eq 0 -or $trimmed.StartsWith("SESSIONNAME")) { continue }
+        
+        $cleanLine = $line.Replace(">", " ")
+        
+        # Determine if the session name column is empty by counting leading spaces
+        $firstCharIndex = 0
+        while ($firstCharIndex -lt $cleanLine.Length -and $cleanLine[$firstCharIndex] -eq ' ') {
+            $firstCharIndex++
+        }
+        
+        $tokens = $cleanLine.Trim() -split '\s+'
+        if ($tokens.Count -lt 3) { continue }
+        
+        $sessionName = ""
+        $username = ""
+        $id = 0
+        $state = ""
+        
+        if ($firstCharIndex -ge 10) {
+            # sessionName is empty (e.g. disconnected user session)
+            $username = $tokens[0]
+            if ($tokens[1] -match '^\d+$') {
+                $id = [int]$tokens[1]
+                $state = $tokens[2]
+            } else {
+                continue
             }
+        } else {
+            $sessionName = $tokens[0]
+            # Check if second token is a numeric ID
+            if ($tokens[1] -match '^\d+$') {
+                $username = ""
+                $id = [int]$tokens[1]
+                $state = $tokens[2]
+            } elseif ($tokens.Count -ge 4 -and $tokens[2] -match '^\d+$') {
+                $username = $tokens[1]
+                $id = [int]$tokens[2]
+                $state = $tokens[3]
+            } else {
+                continue
+            }
+        }
+        
+        # For disconnected RDP sessions, session name is empty but it's an RDP session.
+        # Set sessionName to rdp-tcp#<id> to help frontend identify it as RDP session.
+        if ([string]::IsNullOrEmpty($sessionName) -and $id -gt 1 -and $id -ne 65536) {
+            $sessionName = "rdp-tcp#$id"
+        }
+        
+        $sessions += [ordered]@{
+            sessionName = $sessionName
+            username    = $username
+            id          = $id
+            state       = $state
         }
     }
     return $sessions
