@@ -74,6 +74,12 @@ public class AiDlcStatusService {
                     if ("reports".equals(entry.getFileName().toString())) {
                         continue;
                     }
+                    if (isInformationalOnly(entry.resolve("proposal.md"))) {
+                        // Report-only role workers (docs/qa/security) never get a
+                        // SIGN-OFF - they're not awaiting a decision, so counting
+                        // them as "pending" would be misleading on the dashboard.
+                        continue;
+                    }
                     SignOffResult result = classifySignOff(entry.resolve("SIGN-OFF.md"));
                     switch (result) {
                         case GO -> resolvedGo++;
@@ -85,6 +91,18 @@ public class AiDlcStatusService {
             return new Phase2Counts(true, pending, resolvedGo, resolvedNoGo);
         } catch (IOException ex) {
             return Phase2Counts.unavailable();
+        }
+    }
+
+    private boolean isInformationalOnly(Path proposalMdFile) {
+        try {
+            if (!Files.isRegularFile(proposalMdFile)) {
+                return false;
+            }
+            String raw = Files.readString(proposalMdFile, StandardCharsets.UTF_8);
+            return raw.contains("informational");
+        } catch (IOException ex) {
+            return false;
         }
     }
 
