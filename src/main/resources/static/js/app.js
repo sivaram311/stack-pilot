@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let services = [];
     let renderedServiceKey = '';
     let pendingHostAction = null;
-    let activePanel = 'services';
+    let activePanel = 'fleet';
     let logsDrawerOpen = false;
     let hostConfig = {
         confirmPhraseRestart: 'RESTART SERVER',
@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const runningCountEl = document.getElementById('running-count');
     const overflowBtn = document.getElementById('btn-overflow');
     const overflowPanel = document.getElementById('overflow-panel');
+    const envStripText = document.getElementById('env-strip-text');
+    const drivesGrid = document.getElementById('drives-grid');
 
     const hostModal = document.getElementById('host-modal');
     const hostModalTitle = document.getElementById('host-modal-title');
@@ -211,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startDashboardPolling() {
+        fetchPlatformSummary();
         fetchStatus();
         fetchNginxStatus();
         fetchRdpStatus();
@@ -220,12 +223,80 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pollingInterval) clearInterval(pollingInterval);
         pollingInterval = setInterval(() => {
             if (authRequired && !authUnlocked) return;
+            fetchPlatformSummary();
             fetchStatus();
             fetchNginxStatus();
             fetchRdpStatus();
             fetchHostStatus();
             fetchLogs();
         }, 1500);
+    }
+
+    function formatBytes(n) {
+        const v = Number(n) || 0;
+        if (v <= 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let i = 0;
+        let x = v;
+        while (x >= 1024 && i < units.length - 1) {
+            x /= 1024;
+            i++;
+        }
+        return `${x < 10 && i > 0 ? x.toFixed(1) : Math.round(x)} ${units[i]}`;
+    }
+
+    async function fetchPlatformSummary() {
+        try {
+            const response = await apiFetch('/api/platform/summary');
+            if (!response.ok) throw new Error('platform summary failed');
+            const data = await response.json();
+            const env = data.env || {};
+            const label = env.label || '?';
+            const drive = env.drive || '?';
+            const port = data.serverPort != null ? data.serverPort : '?';
+            const ver = data.versionLabel ? ` · ${data.versionLabel}` : '';
+            if (envStripText) {
+                envStripText.textContent = `${label} · ${drive}: · :${port}${ver}`;
+                envStripText.title = `${env.role || ''} · profile ${data.profile || ''} · ${data.workingDirectory || ''}`;
+            }
+            renderDrives(data.drives || []);
+        } catch (error) {
+            console.error('Error fetching platform summary:', error);
+            if (envStripText && envStripText.textContent.startsWith('Loading')) {
+                envStripText.textContent = 'Env unavailable';
+            }
+        }
+    }
+
+    function renderDrives(drives) {
+        if (!drivesGrid) return;
+        if (!drives.length) {
+            drivesGrid.innerHTML = '<p class="stub-note">No drive data.</p>';
+            return;
+        }
+        drivesGrid.innerHTML = drives.map(d => {
+            const usable = d.usable !== false;
+            const free = formatBytes(d.freeBytes);
+            const total = formatBytes(d.totalBytes);
+            const pct = (d.totalBytes > 0)
+                ? Math.round((Number(d.freeBytes) / Number(d.totalBytes)) * 100)
+                : 0;
+            const badge = usable ? 'OK' : 'N/A';
+            const badgeClass = usable ? 'status-running' : 'status-stopped';
+            const purpose = escapeHtml(d.purpose || '');
+            return `<article class="service-row drive-row" role="listitem">
+                <div class="row-main">
+                    <div class="row-identity">
+                        <span class="row-name">${escapeHtml(d.letter)}: · ${escapeHtml(d.label)}</span>
+                        <span class="status-badge ${badgeClass}">${badge}</span>
+                    </div>
+                    <div class="row-meta">
+                        <span class="meta-item"><span class="meta-label">Free</span> <span class="meta-value">${free} / ${total} (${pct}%)</span></span>
+                        <span class="meta-item"><span class="meta-label">Purpose</span> <span class="meta-value path" title="${purpose}">${purpose}</span></span>
+                    </div>
+                </div>
+            </article>`;
+        }).join('');
     }
 
     function isDesktop() {
@@ -561,7 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderServiceCards(servicesData);
         } catch (error) {
             console.error('Error fetching service status:', error);
-            if (!renderedServiceKey) {
             if (!renderedServiceKey) {
                 servicesGrid.innerHTML = '<div class="row-loading" aria-live="assertive"><p class="error-msg">Failed to load services. Pull to refresh or check network.</p></div>';
             }

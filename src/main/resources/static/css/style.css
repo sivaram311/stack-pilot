@@ -95,9 +95,15 @@ button, input {
 .app-shell {
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: var(--sp-appbar-height) 1fr var(--sp-nav-height);
+    /* Tracks must include safe-area; bar/nav heights add insets (border-box). */
+    grid-template-rows:
+        calc(var(--sp-appbar-height) + var(--sp-safe-top))
+        auto
+        1fr
+        calc(var(--sp-nav-height) + var(--sp-safe-bottom));
     grid-template-areas:
         "bar"
+        "env"
         "main"
         "bottom";
     height: 100dvh;
@@ -161,6 +167,52 @@ button, input {
 .app-bar-actions {
     display: flex;
     align-items: center;
+}
+
+.env-strip {
+    grid-area: env;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 32px;
+    padding: 0.35rem var(--sp-pad-x) 0.35rem var(--sp-pad-x);
+    padding-right: var(--sp-pad-x-end);
+    background: var(--sp-accent-muted);
+    border-bottom: 1px solid var(--sp-border);
+    color: var(--sp-accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.env-strip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stub-note {
+    margin: 0 var(--sp-pad-x) 1.25rem;
+    margin-right: var(--sp-pad-x-end);
+    color: var(--sp-text-secondary);
+    font-size: 0.9375rem;
+    line-height: 1.45;
+}
+
+.stub-note code {
+    font-family: var(--sp-mono);
+    font-size: 0.85em;
+    color: var(--sp-accent);
+}
+
+.drive-row .row-name {
+    font-variant-numeric: tabular-nums;
+}
+
+.bottom-nav .nav-item-label {
+    font-size: 0.65rem;
 }
 
 .overflow-menu {
@@ -1110,9 +1162,13 @@ button, input {
 @media (min-width: 768px) {
     .app-shell {
         grid-template-columns: 160px 1fr;
-        grid-template-rows: var(--sp-appbar-height) 1fr;
+        grid-template-rows:
+            calc(var(--sp-appbar-height) + var(--sp-safe-top))
+            auto
+            1fr;
         grid-template-areas:
             "bar bar"
+            "env env"
             "side main";
     }
 
