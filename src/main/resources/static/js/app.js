@@ -268,6 +268,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function fetchAiDlcSummary() {
+        const setVal = (id, v) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = v != null ? String(v) : '—';
+        };
+        const note = document.getElementById('aidlc-status-note');
+        try {
+            const response = await apiFetch('/api/aidlc/summary');
+            if (!response.ok) throw new Error('aidlc summary failed');
+            const data = await response.json();
+            setVal('aidlc-phase1-open', data.phase1OpenFindings);
+            setVal('aidlc-phase1-triaged', data.phase1TriagedFindings);
+            setVal('aidlc-phase2-pending', data.phase2Pending);
+            setVal('aidlc-phase2-go', data.phase2ResolvedGo);
+            setVal('aidlc-phase2-nogo', data.phase2ResolvedNoGo);
+            if (note) {
+                const missing = [];
+                if (data.phase1Available === false) missing.push('Phase 1 queue unavailable');
+                if (data.phase2Available === false) missing.push('Phase 2 proposals unavailable');
+                if (missing.length) {
+                    note.textContent = missing.join(' · ');
+                    note.hidden = false;
+                } else {
+                    note.textContent = '';
+                    note.hidden = true;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching AI-DLC summary:', error);
+            setVal('aidlc-phase1-open', '—');
+            setVal('aidlc-phase1-triaged', '—');
+            setVal('aidlc-phase2-pending', '—');
+            setVal('aidlc-phase2-go', '—');
+            setVal('aidlc-phase2-nogo', '—');
+            if (note) {
+                note.textContent = 'AI-DLC summary unavailable';
+                note.hidden = false;
+            }
+        }
+    }
+
     function renderDrives(drives) {
         if (!drivesGrid) return;
         if (!drives.length) {
@@ -324,6 +365,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (panel === 'logs') {
             closeLogsDrawer(true);
             restoreLogsSurfaceToPanel();
+        }
+        if (panel === 'aidlc') {
+            fetchAiDlcSummary();
         }
     }
 

@@ -56,8 +56,8 @@
             <button type="button" class="nav-item" data-panel="logs">
                 <span class="nav-item-label">Logs</span>
             </button>
-            <button type="button" class="nav-item" data-panel="host">
-                <span class="nav-item-label">Host</span>
+            <button type="button" class="nav-item" data-panel="aidlc">
+                <span class="nav-item-label">AI-DLC</span>
             </button>
         </nav>
 
@@ -198,22 +198,34 @@
                 </div>
             </section>
 
-            <section class="panel panel-host" id="panel-host" data-panel="host" aria-label="Host" hidden>
+            <section class="panel panel-aidlc" id="panel-aidlc" data-panel="aidlc" aria-label="AI-DLC" hidden>
                 <div class="panel-toolbar">
-                    <h2 class="panel-title">Host</h2>
-                    <p class="panel-subtitle">Restart or shut down the Windows server. Actions use a <strong id="host-delay-label">60</strong>s delay — cancel before it expires.</p>
+                    <h2 class="panel-title">AI-DLC</h2>
+                    <p class="panel-subtitle">Phase 1 drift-reconcile + Phase 2 proposal status</p>
                 </div>
-                <div class="host-panel">
-                    <div class="host-status" id="host-pending-banner" style="display: none;">
-                        <span id="host-pending-text"></span>
-                        <button class="btn btn-sm btn-warning" id="btn-host-cancel" type="button">Cancel</button>
+                <div class="aidlc-stats" id="aidlc-stats" role="list">
+                    <div class="aidlc-stat" role="listitem">
+                        <span class="meta-label">Phase 1 open findings</span>
+                        <span class="aidlc-stat-value" id="aidlc-phase1-open">—</span>
                     </div>
-                    <div class="host-actions">
-                        <button class="btn btn-warning" id="btn-host-restart" type="button">Restart Server</button>
-                        <button class="btn btn-danger" id="btn-host-shutdown" type="button">Shutdown Server</button>
+                    <div class="aidlc-stat" role="listitem">
+                        <span class="meta-label">Phase 1 triaged findings</span>
+                        <span class="aidlc-stat-value" id="aidlc-phase1-triaged">—</span>
                     </div>
-                    <p class="host-hint">Confirmation uses the modal — type the exact phrase from server config.</p>
+                    <div class="aidlc-stat" role="listitem">
+                        <span class="meta-label">Phase 2 pending proposals</span>
+                        <span class="aidlc-stat-value" id="aidlc-phase2-pending">—</span>
+                    </div>
+                    <div class="aidlc-stat" role="listitem">
+                        <span class="meta-label">Phase 2 resolved (GO)</span>
+                        <span class="aidlc-stat-value" id="aidlc-phase2-go">—</span>
+                    </div>
+                    <div class="aidlc-stat" role="listitem">
+                        <span class="meta-label">Phase 2 resolved (NO-GO)</span>
+                        <span class="aidlc-stat-value" id="aidlc-phase2-nogo">—</span>
+                    </div>
                 </div>
+                <p class="stub-note" id="aidlc-status-note" hidden></p>
             </section>
 
         </main>
@@ -249,11 +261,11 @@
                 </svg>
                 <span class="nav-item-label">Logs</span>
             </button>
-            <button type="button" class="nav-item" data-panel="host">
+            <button type="button" class="nav-item" data-panel="aidlc">
                 <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                    <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+                    <path d="M9 3h6v4H9zM5 9h14v12H5zM9 13h6M9 17h4"/>
                 </svg>
-                <span class="nav-item-label">Host</span>
+                <span class="nav-item-label">AI-DLC</span>
             </button>
         </nav>
     </div>
